@@ -43,7 +43,8 @@ class PlayerRepository {
                 if (item.type != "player") continue
 
                 val id = item.id ?: continue
-                val attr = item.attributes ?: continue
+                val attrMap = item.attributes ?: continue
+                val attr = PlayerAttributes(attrMap)
 
                 // ✅ mapowanie po ID
                 result[id] = attr
