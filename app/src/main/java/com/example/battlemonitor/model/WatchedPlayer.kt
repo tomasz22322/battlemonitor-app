@@ -19,5 +19,8 @@ data class WatchedPlayer(
     var notificationsEnabled: Boolean? = null,
 
     // ✅ ręczne grupowanie
-    var group: String = "DEFAULT"
+    var group: String = "DEFAULT",
+
+    // ręczna kolejność w obrębie grupy
+    var sortOrder: Int = 0
 )
