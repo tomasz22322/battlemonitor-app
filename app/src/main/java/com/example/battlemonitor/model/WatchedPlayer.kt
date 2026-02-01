@@ -27,6 +27,12 @@ data class WatchedPlayer(
     var joinHourCounts: List<Int>? = null,
     var leaveHourCounts: List<Int>? = null,
 
+    // dane z BattleMetrics (player endpoint)
+    var createdAt: Long? = null,
+    var updatedAt: Long? = null,
+    var lastSeenApiAt: Long? = null,
+    var infoFetchedAt: Long? = null,
+
     // czy wysyłać powiadomienia o zmianie online/offline
     var notificationsEnabled: Boolean? = null,
 

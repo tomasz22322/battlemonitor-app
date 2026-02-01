@@ -3,6 +3,7 @@ package com.example.battlemonitor.data
 import android.util.Log
 import com.example.battlemonitor.api.RetrofitInstance
 import com.example.battlemonitor.model.PlayerAttributes
+import com.example.battlemonitor.model.PlayerDetailsAttributes
 import com.example.battlemonitor.model.PlayerSessionAttributes
 import com.example.battlemonitor.model.ServerAttributes
 import java.time.Instant
@@ -11,6 +12,13 @@ data class OnlinePlayersSnapshot(
     val serverName: String?,
     val players: Map<String, PlayerAttributes>,
     val sessionStartTimes: Map<String, Long>
+)
+
+data class PlayerInfo(
+    val id: String,
+    val createdAt: Long?,
+    val updatedAt: Long?,
+    val lastSeenAt: Long?
 )
 
 class PlayerRepository {
@@ -67,7 +75,7 @@ class PlayerRepository {
 
                 val id = item.id ?: continue
                 val attrMap = item.attributes ?: continue
-                val attr = PlayerAttributes(attrMap)
+                val attr = PlayerAttributes(attrMap, id)
                 val sessionStartAt = fetchSessionStartAt(id)
 
                 // ✅ mapowanie po ID
@@ -147,5 +155,37 @@ class PlayerRepository {
         if (!attributes.stop.isNullOrBlank()) return null
         val start = attributes.start ?: return null
         return runCatching { Instant.parse(start).toEpochMilli() }.getOrNull()
+    }
+
+    suspend fun fetchPlayerInfo(playerId: String): PlayerInfo? {
+        return try {
+            val response = RetrofitInstance.api.getPlayerDetails(
+                playerId = playerId,
+                auth = token
+            )
+            if (!response.isSuccessful) {
+                Log.e("BM", "Player HTTP ${response.code()} ${response.message()}")
+                return null
+            }
+
+            val data = response.body()?.data ?: return null
+            val attrMap = data.attributes ?: emptyMap()
+            val attrs = PlayerDetailsAttributes(attrMap)
+
+            PlayerInfo(
+                id = data.id ?: playerId,
+                createdAt = parseInstant(attrs.createdAt),
+                updatedAt = parseInstant(attrs.updatedAt),
+                lastSeenAt = parseInstant(attrs.lastSeen)
+            )
+        } catch (e: Exception) {
+            Log.e("BM", "fetchPlayerInfo exception: ${e.message}", e)
+            null
+        }
+    }
+
+    private fun parseInstant(value: String?): Long? {
+        if (value.isNullOrBlank()) return null
+        return runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()
     }
 }

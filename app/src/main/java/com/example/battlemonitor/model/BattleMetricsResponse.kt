@@ -25,7 +25,10 @@ class ServerAttributes(private val raw: Map<String, Any?>) {
     val name: String? = raw["name"]?.toString()?.takeIf { it.isNotBlank() }
 }
 
-class PlayerAttributes(private val raw: Map<String, Any?>) {
+class PlayerAttributes(
+    private val raw: Map<String, Any?>,
+    val id: String? = null
+) {
 
     private val preferredDetails = listOf(
         "steamID",
