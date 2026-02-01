@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity() {
         val et = findViewById<EditText>(R.id.etPlayerKey)
         val btnAdd = findViewById<Button>(R.id.btnAdd)
         val rv = findViewById<RecyclerView>(R.id.rvPlayers)
+        val btnRefresh = findViewById<Button>(R.id.btnRefresh)
 
         lateinit var itemTouchHelper: ItemTouchHelper
 
@@ -113,6 +114,10 @@ class MainActivity : AppCompatActivity() {
                     et.setText("")
                 }
             )
+        }
+
+        btnRefresh.setOnClickListener {
+            vm.refreshNow()
         }
 
         vm.items.observe(this) { list ->

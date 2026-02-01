@@ -132,20 +132,25 @@ class PlayerAdapter(
 
             tvName.text = item.resolvedName.ifBlank { item.key }
 
-            val metaParts = LinkedHashSet<String>()
-
-            metaParts.add(if (item.online) "Online" else "Offline")
-
-            val serverName = item.currentServerName?.takeIf { it.isNotBlank() }
-            if (serverName != null) {
-                metaParts.add(serverName)
+            val metaText = if (item.online) {
+                val metaParts = LinkedHashSet<String>()
+                metaParts.add("Online")
+                val serverName = item.currentServerName?.takeIf { it.isNotBlank() }
+                if (serverName != null) {
+                    metaParts.add(serverName)
+                }
+                metaParts.joinToString(separator = "\n")
+            } else {
+                "Offline"
             }
-
-            val metaText = metaParts.joinToString(separator = "\n")
             tvMeta.text = metaText
             tvMeta.visibility = if (metaText.isBlank()) View.GONE else View.VISIBLE
 
-            val detailsText = item.details.orEmpty().joinToString(separator = "\n")
+            val detailsText = if (item.online) {
+                item.details.orEmpty().joinToString(separator = "\n")
+            } else {
+                ""
+            }
             tvDetails.text = detailsText
             tvDetails.visibility = if (detailsText.isBlank()) View.GONE else View.VISIBLE
 

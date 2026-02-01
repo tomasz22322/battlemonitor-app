@@ -82,6 +82,9 @@ class PlayerAttributes(
         val identifiers = raw["identifiers"]
         if (identifiers is List<*>) {
             identifiers.forEach { entry ->
+                if (entry is String && entry.lowercase().startsWith("steam")) {
+                    return formatIdentifier(entry)
+                }
                 val map = entry as? Map<*, *> ?: return@forEach
                 val type = map["type"]?.toString()?.lowercase()
                 val identifier = map["identifier"] ?: map["id"]
@@ -165,8 +168,17 @@ class PlayerAttributes(
     private fun formatIdentifier(value: Any): String? {
         return when (value) {
             is Number -> value.toString()
-            is String -> value.takeIf { it.isNotBlank() }
+            is String -> normalizeSteamString(value)
             else -> value.toString()
         }?.takeIf { it.isNotBlank() }
+    }
+
+    private fun normalizeSteamString(value: String): String? {
+        val trimmed = value.trim()
+        if (trimmed.isBlank()) return null
+        if (":" in trimmed && trimmed.lowercase().startsWith("steam")) {
+            return trimmed.substringAfter(":").trim().takeIf { it.isNotBlank() }
+        }
+        return trimmed
     }
 }
