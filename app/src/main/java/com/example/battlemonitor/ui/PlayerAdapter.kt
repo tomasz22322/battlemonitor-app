@@ -141,7 +141,7 @@ class PlayerAdapter(
                 metaParts.add("Serwer: $serverName")
             }
 
-            val metaText = metaParts.joinToString(" • ")
+            val metaText = metaParts.joinToString(separator = "\n")
             tvMeta.text = metaText
             tvMeta.visibility = if (metaText.isBlank()) View.GONE else View.VISIBLE
 
