@@ -19,7 +19,14 @@ class PlayerStorage(context: Context) {
         val json = prefs.getString("players_json", null) ?: return emptyList()
         return try {
             val type = object : TypeToken<List<WatchedPlayer>>() {}.type
-            gson.fromJson(json, type) ?: emptyList()
+            val loaded = gson.fromJson<List<WatchedPlayer>>(json, type) ?: emptyList()
+            loaded.map { player ->
+                if (player.details == null) {
+                    player.copy(details = emptyList())
+                } else {
+                    player
+                }
+            }
         } catch (_: Exception) {
             emptyList()
         }

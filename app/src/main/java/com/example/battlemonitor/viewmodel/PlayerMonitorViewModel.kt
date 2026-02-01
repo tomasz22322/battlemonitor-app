@@ -182,7 +182,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             val wasOnline = item.online
             val oldName = item.resolvedName
             val oldTime = item.playTime
-            val oldDetails = item.details
+            val oldDetails = item.details.orEmpty()
 
             if (found != null) {
                 item.online = true
@@ -213,7 +213,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             if (wasOnline != item.online ||
                 oldName != item.resolvedName ||
                 oldTime != item.playTime ||
-                oldDetails != item.details
+                oldDetails != item.details.orEmpty()
             ) {
                 changed = true
             }
