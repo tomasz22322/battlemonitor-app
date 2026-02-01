@@ -41,7 +41,7 @@ class PlayerRepository {
      * - klucz = playerId (np. battlemetrics player id)
      * - klucz = name.lowercase() (opcjonalnie)
      */
-    suspend fun fetchOnlinePlayers(): OnlinePlayersSnapshot {
+    suspend fun fetchOnlinePlayers(watchedKeys: Set<String> = emptySet()): OnlinePlayersSnapshot {
         return try {
             val response = RetrofitInstance.api.getServer(auth = token)
 
@@ -77,6 +77,11 @@ class PlayerRepository {
                 val id = item.id ?: continue
                 val attrMap = item.attributes ?: continue
                 val attr = PlayerAttributes(attrMap, id)
+                val name = attr.name?.lowercase()
+                val shouldTrack = watchedKeys.isEmpty() ||
+                    watchedKeys.contains(id) ||
+                    (name != null && watchedKeys.contains(name))
+                if (!shouldTrack) continue
                 val sessionStartAt = fetchSessionStartAt(id)
 
                 // ✅ mapowanie po ID
@@ -86,11 +91,10 @@ class PlayerRepository {
                 }
 
                 // ✅ mapowanie po nicku (lowercase)
-                val name = attr.name
                 if (!name.isNullOrBlank()) {
-                    result[name.lowercase()] = attr
+                    result[name] = attr
                     if (sessionStartAt != null) {
-                        sessionStartTimes[name.lowercase()] = sessionStartAt
+                        sessionStartTimes[name] = sessionStartAt
                     }
                 }
 

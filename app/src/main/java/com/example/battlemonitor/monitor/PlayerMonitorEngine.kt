@@ -21,7 +21,19 @@ class PlayerMonitorEngine(
     }
 
     suspend fun scan(players: MutableList<WatchedPlayer>): ScanResult {
-        val snapshot = repository.fetchOnlinePlayers()
+        val watchedKeys = players.flatMap { player ->
+            buildList {
+                val normalizedKey = player.key.trim().lowercase()
+                if (normalizedKey.isNotBlank()) {
+                    add(normalizedKey)
+                }
+                val resolvedId = player.resolvedId?.trim()
+                if (!resolvedId.isNullOrBlank()) {
+                    add(resolvedId)
+                }
+            }
+        }.toSet()
+        val snapshot = repository.fetchOnlinePlayers(watchedKeys)
         val onlineMap = snapshot.players
         val sessionStartTimes = snapshot.sessionStartTimes
         val serverName = snapshot.serverName?.takeIf { it.isNotBlank() }
