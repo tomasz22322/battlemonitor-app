@@ -1,34 +1,24 @@
 package com.example.battlemonitor.viewmodel
 
 import android.app.Application
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.*
 import com.example.battlemonitor.data.PlayerRepository
 import com.example.battlemonitor.data.PlayerStorage
 import com.example.battlemonitor.model.WatchedPlayer
+import com.example.battlemonitor.monitor.PlayerMonitorEngine
 import com.example.battlemonitor.ui.PlayerListItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val DEFAULT_GROUP = "DEFAULT"
-        private const val STATUS_CHANNEL_ID = "player_status"
     }
 
     private val repository = PlayerRepository()
+    private val engine = PlayerMonitorEngine(repository)
     private val storage = PlayerStorage(app.applicationContext)
-    private val notificationManager = NotificationManagerCompat.from(app.applicationContext)
 
     private val watchedPlayers = mutableListOf<WatchedPlayer>()
 
@@ -38,7 +28,6 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     init {
         watchedPlayers.addAll(storage.load())
         ensureSortOrder()
-        createNotificationChannel()
         publish()
         startMonitoring()
     }
@@ -247,260 +236,10 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun scanServer() {
-        val snapshot = repository.fetchOnlinePlayers()
-        val onlineMap = snapshot.players
-        val serverName = snapshot.serverName?.takeIf { it.isNotBlank() }
-        val now = System.currentTimeMillis()
-
-        var changed = false
-
-        watchedPlayers.forEach { item ->
-
-            // Dopasowanie:
-            // 1) jeśli mamy resolvedId i onlineMap ma wpis pod ID
-            // 2) jeśli nie, próbujemy po key wpisanym przez usera (nick/ID)
-            val found = when {
-                item.resolvedId != null && onlineMap.containsKey(item.resolvedId!!) ->
-                    onlineMap[item.resolvedId!!]
-                onlineMap.containsKey(item.key.lowercase()) ->
-                    onlineMap[item.key.lowercase()]
-                else -> null
-            }
-
-            val wasOnline = item.online
-            val oldName = item.resolvedName
-            val oldTime = item.playTime
-            val oldDetails = item.details.orEmpty()
-            val oldServer = item.currentServerName
-
-            if (found != null) {
-                item.online = true
-
-                val newName = found.name ?: item.resolvedName.ifBlank { item.key }
-                item.resolvedName = newName
-                if (serverName != null && serverName != oldServer) {
-                    item.currentServerName = serverName
-                    item.sessionStartAt = null
-                } else if (serverName != null) {
-                    item.currentServerName = serverName
-                }
-
-                // repo zwraca PlayerAttributes, nie ma tam "id" (u Ciebie był błąd unresolved reference id)
-                // resolvedId ustawiamy TYLKO jeśli user wpisał ID (cyfry), wtedy traktujemy key jako ID.
-                if (item.resolvedId.isNullOrBlank()) {
-                    val k = item.key.trim()
-                    if (k.all { it.isDigit() }) item.resolvedId = k
-                }
-
-                item.lastSeenAt = now
-                if (!wasOnline) {
-                    item.sessionStartAt = now
-                    item.joinHourCounts = incrementHourCount(item.joinHourCounts, now)
-                }
-
-                val apiSeconds = found.bestSeconds()
-                if (item.sessionStartAt == null) {
-                    item.sessionStartAt = if (apiSeconds != null && apiSeconds > 0) {
-                        now - (apiSeconds * 1000L)
-                    } else {
-                        now
-                    }
-                }
-
-                val sessionSeconds = item.sessionStartAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
-                val secondsToShow = sessionSeconds?.takeIf { it > 0 } ?: apiSeconds
-                item.playTime = when {
-                    secondsToShow == null || secondsToShow <= 0 -> "??"
-                    else -> formatDuration(secondsToShow)
-                }
-
-                val derivedDetails = buildDerivedDetails(
-                    item = item,
-                    now = now,
-                    sessionSeconds = sessionSeconds
-                )
-                item.details = (derivedDetails + found.buildDetails()).filter { it.isNotBlank() }
-            } else {
-                if (wasOnline) {
-                    val sessionSeconds =
-                        item.sessionStartAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
-                    if (sessionSeconds != null && sessionSeconds > 0) {
-                        item.lastSessionSeconds = sessionSeconds
-                        val total = (item.totalSessionSeconds ?: 0L) + sessionSeconds
-                        item.totalSessionSeconds = total
-                    }
-                    item.sessionStartAt = null
-                    item.lastOfflineAt = now
-                    item.leaveHourCounts = incrementHourCount(item.leaveHourCounts, now)
-                }
-                item.online = false
-                item.playTime = ""
-                item.currentServerName = null
-
-                val derivedDetails = buildDerivedDetails(
-                    item = item,
-                    now = now,
-                    sessionSeconds = null
-                )
-                item.details = derivedDetails
-            }
-
-            if (wasOnline != item.online ||
-                oldName != item.resolvedName ||
-                oldTime != item.playTime ||
-                oldDetails != item.details.orEmpty() ||
-                oldServer != item.currentServerName
-            ) {
-                changed = true
-            }
-
-            if (wasOnline != item.online && item.notificationsEnabled != false) {
-                if (canPostNotifications()) {
-                    sendStatusNotification(item, item.online)
-                }
-            }
-        }
-
-        if (changed) {
+        val result = engine.scan(watchedPlayers)
+        if (result.changed) {
             storage.save(watchedPlayers)
             publish()
         }
-    }
-
-    private fun buildDerivedDetails(
-        item: WatchedPlayer,
-        now: Long,
-        sessionSeconds: Long?
-    ): List<String> {
-        val details = mutableListOf<String>()
-
-        if (item.online && !item.currentServerName.isNullOrBlank()) {
-            details.add("Serwer: ${item.currentServerName}")
-        }
-
-        if (item.online && sessionSeconds != null) {
-            details.add("Na serwerze: ${formatDuration(sessionSeconds)}")
-        } else if (!item.online && item.lastSessionSeconds != null) {
-            details.add("Ostatnia sesja: ${formatDuration(item.lastSessionSeconds!!)}")
-        }
-
-        val totalSeconds = (item.totalSessionSeconds ?: 0L) +
-            if (item.online && sessionSeconds != null) sessionSeconds else 0L
-        if (totalSeconds > 0) {
-            details.add("Łącznie zmonitorowane: ${formatDuration(totalSeconds)}")
-        }
-
-        if (item.online && item.sessionStartAt != null) {
-            details.add("Na serwerze od: ${formatTimeOfDay(item.sessionStartAt!!)}")
-        } else if (!item.online && item.lastSeenAt != null) {
-            details.add("Ostatnio widziany: ${formatRelativeTime(item.lastSeenAt!!, now)}")
-        }
-
-        val joinInfo = formatTypicalHour(item.joinHourCounts, "Najczęściej dołącza")
-        if (joinInfo != null) details.add(joinInfo)
-
-        val leaveInfo = formatTypicalHour(item.leaveHourCounts, "Najczęściej rozłącza")
-        if (leaveInfo != null) details.add(leaveInfo)
-
-        return details
-    }
-
-    private fun formatDuration(seconds: Long): String {
-        val safeSeconds = seconds.coerceAtLeast(0)
-        val minutes = safeSeconds / 60
-        val hours = minutes / 60
-        val days = hours / 24
-
-        return when {
-            days > 0 -> "${days}d ${hours % 24}h"
-            hours > 0 -> "${hours}h ${minutes % 60}m"
-            else -> "${minutes}m"
-        }
-    }
-
-    private fun formatTimeOfDay(millis: Long): String {
-        val formatter = DateTimeFormatter.ofPattern("HH:mm")
-        return Instant.ofEpochMilli(millis)
-            .atZone(ZoneId.systemDefault())
-            .format(formatter)
-    }
-
-    private fun formatRelativeTime(fromMillis: Long, nowMillis: Long): String {
-        val diffSeconds = ((nowMillis - fromMillis) / 1000L).coerceAtLeast(0)
-        val minutes = diffSeconds / 60
-        val hours = minutes / 60
-        val days = hours / 24
-
-        return when {
-            diffSeconds < 60 -> "przed chwilą"
-            minutes < 60 -> "${minutes}m temu"
-            hours < 24 -> "${hours}h temu"
-            else -> "${days}d temu"
-        }
-    }
-
-    private fun incrementHourCount(counts: List<Int>?, timestamp: Long): List<Int> {
-        val next = (counts ?: List(24) { 0 }).toMutableList()
-        val hour = Instant.ofEpochMilli(timestamp)
-            .atZone(ZoneId.systemDefault())
-            .hour
-        if (hour in 0..23) {
-            next[hour] = next[hour] + 1
-        }
-        return next
-    }
-
-    private fun formatTypicalHour(counts: List<Int>?, label: String): String? {
-        val list = counts ?: return null
-        if (list.isEmpty()) return null
-        val max = list.maxOrNull() ?: return null
-        if (max <= 0) return null
-        val hour = list.indexOfFirst { it == max }.takeIf { it >= 0 } ?: return null
-        val hourLabel = String.format("%02d:00", hour)
-        return "$label: $hourLabel (${max}x)"
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                STATUS_CHANNEL_ID,
-                "Zmiany online/offline",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Powiadomienia o zmianach statusu graczy"
-            }
-            val manager =
-                getApplication<Application>().getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun sendStatusNotification(player: WatchedPlayer, isOnline: Boolean) {
-        val displayName = player.resolvedName.ifBlank { player.key }
-        val title = if (isOnline) "Gracz online" else "Gracz offline"
-        val message = if (isOnline) {
-            "$displayName jest online"
-        } else {
-            "$displayName jest offline"
-        }
-
-        val notification = NotificationCompat.Builder(getApplication(), STATUS_CHANNEL_ID)
-            .setSmallIcon(com.example.battlemonitor.R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setAutoCancel(true)
-            .build()
-
-        notificationManager.notify(displayName.hashCode(), notification)
-    }
-
-    private fun canPostNotifications(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            return true
-        }
-        return ContextCompat.checkSelfPermission(
-            getApplication(),
-            android.Manifest.permission.POST_NOTIFICATIONS
-        ) == PackageManager.PERMISSION_GRANTED
     }
 }

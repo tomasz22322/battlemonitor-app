@@ -1,6 +1,7 @@
 package com.example.battlemonitor
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -14,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.battlemonitor.service.PlayerMonitorService
 import com.example.battlemonitor.ui.PlayerAdapter
 import com.example.battlemonitor.viewmodel.PlayerMonitorViewModel
 
@@ -28,6 +30,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         requestNotificationPermissionIfNeeded()
+        startBackgroundMonitoring()
 
         val et = findViewById<EditText>(R.id.etPlayerKey)
         val btnAdd = findViewById<Button>(R.id.btnAdd)
@@ -126,6 +129,15 @@ class MainActivity : AppCompatActivity() {
             ) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+    }
+
+    private fun startBackgroundMonitoring() {
+        val intent = Intent(this, PlayerMonitorService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ContextCompat.startForegroundService(this, intent)
+        } else {
+            startService(intent)
         }
     }
 

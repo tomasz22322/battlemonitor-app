@@ -132,14 +132,19 @@ class PlayerAdapter(
 
             tvName.text = item.resolvedName.ifBlank { item.key }
 
-            val metaParts = mutableListOf<String>()
+            val metaParts = LinkedHashSet<String>()
+
+            metaParts.add(if (item.online) "Online" else "Offline")
 
             if (!item.resolvedId.isNullOrBlank()) {
                 metaParts.add("ID: ${item.resolvedId}")
             }
 
             if (item.online) {
-                metaParts.add(item.playTime.ifBlank { "??" })
+                val playTime = item.playTime.takeIf { it.isNotBlank() && it != "??" }
+                if (playTime != null) {
+                    metaParts.add(playTime)
+                }
             }
 
             tvMeta.text = metaParts.joinToString(" • ")
