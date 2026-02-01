@@ -19,6 +19,7 @@ class PlayerMonitorEngine(
     suspend fun scan(players: MutableList<WatchedPlayer>): ScanResult {
         val snapshot = repository.fetchOnlinePlayers()
         val onlineMap = snapshot.players
+        val sessionStartTimes = snapshot.sessionStartTimes
         val serverName = snapshot.serverName?.takeIf { it.isNotBlank() }
         val now = System.currentTimeMillis()
 
@@ -26,11 +27,20 @@ class PlayerMonitorEngine(
         val statusChanges = mutableListOf<Pair<WatchedPlayer, Boolean>>()
 
         players.forEach { item ->
+            val resolvedId = item.resolvedId
+            val normalizedKey = item.key.lowercase()
             val found = when {
-                item.resolvedId != null && onlineMap.containsKey(item.resolvedId!!) ->
-                    onlineMap[item.resolvedId!!]
-                onlineMap.containsKey(item.key.lowercase()) ->
-                    onlineMap[item.key.lowercase()]
+                resolvedId != null && onlineMap.containsKey(resolvedId) ->
+                    onlineMap[resolvedId]
+                onlineMap.containsKey(normalizedKey) ->
+                    onlineMap[normalizedKey]
+                else -> null
+            }
+            val sessionStart = when {
+                resolvedId != null && sessionStartTimes.containsKey(resolvedId) ->
+                    sessionStartTimes[resolvedId]
+                sessionStartTimes.containsKey(normalizedKey) ->
+                    sessionStartTimes[normalizedKey]
                 else -> null
             }
 
@@ -41,7 +51,7 @@ class PlayerMonitorEngine(
             val oldServer = item.currentServerName
 
             if (found != null) {
-                updateOnlinePlayer(item, found, serverName, now, wasOnline)
+                updateOnlinePlayer(item, found, serverName, now, wasOnline, sessionStart)
             } else {
                 updateOfflinePlayer(item, now, wasOnline)
             }
@@ -68,7 +78,8 @@ class PlayerMonitorEngine(
         found: PlayerAttributes,
         serverName: String?,
         now: Long,
-        wasOnline: Boolean
+        wasOnline: Boolean,
+        sessionStart: Long?
     ) {
         item.online = true
 
@@ -90,6 +101,10 @@ class PlayerMonitorEngine(
         if (!wasOnline) {
             item.sessionStartAt = now
             item.joinHourCounts = incrementHourCount(item.joinHourCounts, now)
+        }
+
+        if (sessionStart != null) {
+            item.sessionStartAt = sessionStart
         }
 
         val apiSeconds = found.bestSeconds()
@@ -169,7 +184,7 @@ class PlayerMonitorEngine(
         }
 
         if (item.online && item.sessionStartAt != null) {
-            details.add("Na serwerze od: ${formatTimeOfDay(item.sessionStartAt!!)}")
+            details.add("Na serwerze od: ${formatDateTime(item.sessionStartAt!!)}")
         } else if (!item.online && item.lastSeenAt != null) {
             details.add("Ostatnio widziany: ${formatRelativeTime(item.lastSeenAt!!, now)}")
         }
@@ -209,8 +224,8 @@ class PlayerMonitorEngine(
         }
     }
 
-    private fun formatTimeOfDay(millis: Long): String {
-        val formatter = DateTimeFormatter.ofPattern("HH:mm")
+    private fun formatDateTime(millis: Long): String {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         return Instant.ofEpochMilli(millis)
             .atZone(ZoneId.systemDefault())
             .format(formatter)
