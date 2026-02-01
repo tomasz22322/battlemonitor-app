@@ -5,9 +5,9 @@
     android:orientation="vertical"
     android:fitsSystemWindows="true"
     android:background="@drawable/bg_screen"
-    android:paddingStart="16dp"
+    android:paddingStart="20dp"
     android:paddingTop="14dp"
-    android:paddingEnd="16dp"
+    android:paddingEnd="20dp"
     android:paddingBottom="12dp">
 
     <TextView

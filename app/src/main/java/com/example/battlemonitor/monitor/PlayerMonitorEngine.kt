@@ -185,14 +185,6 @@ class PlayerMonitorEngine(
         apiDetails: List<String>
     ): List<String> {
         val details = mutableListOf<String>()
-        val apiByLabel = apiDetails
-            .mapNotNull { entry ->
-                val parts = entry.split(":", limit = 2)
-                if (parts.size < 2) return@mapNotNull null
-                parts[0].trim().lowercase() to entry.trim()
-            }
-            .toMap()
-
         details.add("ID: ${item.resolvedId ?: "brak danych"}")
         val updatedAtForStay = parseUpdatedAtFromDetails(apiDetails) ?: item.updatedAt
         val staySeconds = updatedAtForStay?.let { ((now - it) / 1000L).coerceAtLeast(0) }
@@ -202,14 +194,7 @@ class PlayerMonitorEngine(
                 else "brak danych"
             }"
         )
-        details.add("Created At: ${formatTimestamp(item.createdAt)}")
-        details.add("Updated At: ${formatTimestamp(item.updatedAt)}")
-        details.add(
-            apiByLabel["private"] ?: "Private: brak danych"
-        )
-        details.add(
-            apiByLabel["positive match"] ?: "Positive Match: brak danych"
-        )
+        details.add("Pierwszy raz na serwerze: ${formatTimestamp(item.createdAt)}")
 
         return details
     }
