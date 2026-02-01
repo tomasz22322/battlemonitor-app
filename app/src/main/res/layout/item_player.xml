@@ -56,17 +56,15 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
 
-            <TextView
-                android:id="@+id/tvDetails"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:maxLines="6"
-                android:text="Country: PL\nSteam ID: 123"
-                android:textColor="@color/text_secondary"
-                android:textSize="10sp"
-                android:visibility="gone" />
+        <TextView
+            android:id="@+id/tvDetails"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Country: PL\nSteam ID: 123"
+            android:textColor="@color/text_secondary"
+            android:textSize="10sp"
+            android:visibility="gone" />
         </LinearLayout>
 
         <!-- powiadomienia -->

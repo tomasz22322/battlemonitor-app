@@ -35,6 +35,16 @@ class PlayerAttributes(private val raw: Map<String, Any?>) {
         "playerId",
         "country",
         "region",
+        "score",
+        "rank",
+        "kills",
+        "deaths",
+        "kdr",
+        "level"
+    )
+
+    private val excludedDetailKeys = setOf(
+        "name",
         "online",
         "status",
         "lastSeen",
@@ -44,13 +54,10 @@ class PlayerAttributes(private val raw: Map<String, Any?>) {
         "sessionTime",
         "onlineTime",
         "timePlayed",
+        "timePlayedSeconds",
+        "secondsPlayed",
         "playTime",
-        "score",
-        "rank",
-        "kills",
-        "deaths",
-        "kdr",
-        "level"
+        "playtime"
     )
 
     val name: String? = raw["name"]?.toString()?.takeIf { it.isNotBlank() }
@@ -79,11 +86,11 @@ class PlayerAttributes(private val raw: Map<String, Any?>) {
             val value = raw[key] ?: return@forEach
             val formatted = formatValue(value) ?: return@forEach
             details.add("${formatLabel(key)}: $formatted")
-            usedKeys.add(key)
+            usedKeys.add(key.lowercase())
         }
 
         raw.keys
-            .filterNot { it == "name" || it in usedKeys }
+            .filterNot { it.lowercase() in excludedDetailKeys || it.lowercase() in usedKeys }
             .sortedBy { it.lowercase() }
             .forEach { key ->
                 val value = raw[key] ?: return@forEach
