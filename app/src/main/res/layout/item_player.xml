@@ -69,6 +69,18 @@
                 android:visibility="gone" />
         </LinearLayout>
 
+        <!-- powiadomienia -->
+        <TextView
+            android:id="@+id/btnNotify"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_notify_button"
+            android:gravity="center"
+            android:text="🔔"
+            android:textColor="@color/accent"
+            android:textSize="14sp" />
+
         <!-- usuń -->
         <TextView
             android:id="@+id/btnRemove"

@@ -15,7 +15,8 @@ import com.example.battlemonitor.model.WatchedPlayer
 class PlayerAdapter(
     private val onRemove: (WatchedPlayer) -> Unit,
     private val onMoveGroup: (WatchedPlayer) -> Unit,
-    private val onRenameGroup: (String) -> Unit
+    private val onRenameGroup: (String) -> Unit,
+    private val onToggleNotifications: (WatchedPlayer) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<PlayerListItem>()
@@ -48,7 +49,12 @@ class PlayerAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
             is PlayerListItem.Header -> (holder as HeaderVH).bind(item.title, onRenameGroup)
-            is PlayerListItem.PlayerRow -> (holder as PlayerVH).bind(item.player, onRemove, onMoveGroup)
+            is PlayerListItem.PlayerRow -> (holder as PlayerVH).bind(
+                item.player,
+                onRemove,
+                onMoveGroup,
+                onToggleNotifications
+            )
         }
     }
 
@@ -92,13 +98,15 @@ class PlayerAdapter(
         private val tvName: TextView = itemView.findViewById(R.id.tvName)
         private val tvMeta: TextView = itemView.findViewById(R.id.tvMeta)
         private val tvDetails: TextView = itemView.findViewById(R.id.tvDetails)
+        private val btnNotify: TextView = itemView.findViewById(R.id.btnNotify)
         private val btnRemove: TextView = itemView.findViewById(R.id.btnRemove)
         private val statusBar: View = itemView.findViewById(R.id.vStatus)
 
         fun bind(
             item: WatchedPlayer,
             onRemove: (WatchedPlayer) -> Unit,
-            onMoveGroup: (WatchedPlayer) -> Unit
+            onMoveGroup: (WatchedPlayer) -> Unit,
+            onToggleNotifications: (WatchedPlayer) -> Unit
         ) {
 
             tvName.text = item.resolvedName.ifBlank { item.key }
@@ -123,6 +131,14 @@ class PlayerAdapter(
                 if (item.online) Color.parseColor("#2E7D32")
                 else Color.parseColor("#616161")
             )
+
+            val notificationsEnabled = item.notificationsEnabled != false
+            btnNotify.text = if (notificationsEnabled) "🔔" else "🔕"
+            btnNotify.setTextColor(
+                if (notificationsEnabled) Color.parseColor("#38BDF8")
+                else Color.parseColor("#94A3B8")
+            )
+            btnNotify.setOnClickListener { onToggleNotifications(item) }
 
             btnRemove.setOnClickListener { onRemove(item) }
             itemView.setOnLongClickListener {

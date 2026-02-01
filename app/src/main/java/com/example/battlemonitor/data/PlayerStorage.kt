@@ -21,11 +21,14 @@ class PlayerStorage(context: Context) {
             val type = object : TypeToken<List<WatchedPlayer>>() {}.type
             val loaded = gson.fromJson<List<WatchedPlayer>>(json, type) ?: emptyList()
             loaded.map { player ->
-                if (player.details == null) {
-                    player.copy(details = emptyList())
-                } else {
-                    player
+                var updated = player
+                if (updated.details == null) {
+                    updated = updated.copy(details = emptyList())
                 }
+                if (updated.notificationsEnabled == null) {
+                    updated = updated.copy(notificationsEnabled = true)
+                }
+                updated
             }
         } catch (_: Exception) {
             emptyList()
