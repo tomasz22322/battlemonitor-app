@@ -247,7 +247,9 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun scanServer() {
-        val onlineMap = repository.fetchOnlinePlayers()
+        val snapshot = repository.fetchOnlinePlayers()
+        val onlineMap = snapshot.players
+        val serverName = snapshot.serverName?.takeIf { it.isNotBlank() }
         val now = System.currentTimeMillis()
 
         var changed = false
@@ -269,12 +271,19 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             val oldName = item.resolvedName
             val oldTime = item.playTime
             val oldDetails = item.details.orEmpty()
+            val oldServer = item.currentServerName
 
             if (found != null) {
                 item.online = true
 
                 val newName = found.name ?: item.resolvedName.ifBlank { item.key }
                 item.resolvedName = newName
+                if (serverName != null && serverName != oldServer) {
+                    item.currentServerName = serverName
+                    item.sessionStartAt = null
+                } else if (serverName != null) {
+                    item.currentServerName = serverName
+                }
 
                 // repo zwraca PlayerAttributes, nie ma tam "id" (u Ciebie był błąd unresolved reference id)
                 // resolvedId ustawiamy TYLKO jeśli user wpisał ID (cyfry), wtedy traktujemy key jako ID.
@@ -326,6 +335,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 item.online = false
                 item.playTime = ""
+                item.currentServerName = null
 
                 val derivedDetails = buildDerivedDetails(
                     item = item,
@@ -338,7 +348,8 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             if (wasOnline != item.online ||
                 oldName != item.resolvedName ||
                 oldTime != item.playTime ||
-                oldDetails != item.details.orEmpty()
+                oldDetails != item.details.orEmpty() ||
+                oldServer != item.currentServerName
             ) {
                 changed = true
             }
@@ -363,6 +374,10 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     ): List<String> {
         val details = mutableListOf<String>()
 
+        if (item.online && !item.currentServerName.isNullOrBlank()) {
+            details.add("Serwer: ${item.currentServerName}")
+        }
+
         if (item.online && sessionSeconds != null) {
             details.add("Na serwerze: ${formatDuration(sessionSeconds)}")
         } else if (!item.online && item.lastSessionSeconds != null) {
@@ -376,7 +391,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         if (item.online && item.sessionStartAt != null) {
-            details.add("Online od: ${formatTimeOfDay(item.sessionStartAt!!)}")
+            details.add("Na serwerze od: ${formatTimeOfDay(item.sessionStartAt!!)}")
         } else if (!item.online && item.lastSeenAt != null) {
             details.add("Ostatnio widziany: ${formatRelativeTime(item.lastSeenAt!!, now)}")
         }

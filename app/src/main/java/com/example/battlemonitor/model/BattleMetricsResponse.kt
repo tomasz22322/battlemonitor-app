@@ -3,7 +3,15 @@ package com.example.battlemonitor.model
 import com.squareup.moshi.Json
 
 data class BattleMetricsResponse(
+    val data: ServerData? = null,
     val included: List<IncludedPlayer>? = null
+)
+
+data class ServerData(
+    val id: String? = null,
+    val type: String? = null,
+    @Json(name = "attributes")
+    val attributes: Map<String, Any?>? = null
 )
 
 data class IncludedPlayer(
@@ -12,6 +20,10 @@ data class IncludedPlayer(
     @Json(name = "attributes")
     val attributes: Map<String, Any?>? = null
 )
+
+class ServerAttributes(private val raw: Map<String, Any?>) {
+    val name: String? = raw["name"]?.toString()?.takeIf { it.isNotBlank() }
+}
 
 class PlayerAttributes(private val raw: Map<String, Any?>) {
 

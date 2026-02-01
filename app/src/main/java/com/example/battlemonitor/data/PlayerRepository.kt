@@ -3,6 +3,12 @@ package com.example.battlemonitor.data
 import android.util.Log
 import com.example.battlemonitor.api.RetrofitInstance
 import com.example.battlemonitor.model.PlayerAttributes
+import com.example.battlemonitor.model.ServerAttributes
+
+data class OnlinePlayersSnapshot(
+    val serverName: String?,
+    val players: Map<String, PlayerAttributes>
+)
 
 class PlayerRepository {
 
@@ -20,23 +26,25 @@ class PlayerRepository {
      * - klucz = playerId (np. battlemetrics player id)
      * - klucz = name.lowercase() (opcjonalnie)
      */
-    suspend fun fetchOnlinePlayers(): Map<String, PlayerAttributes> {
+    suspend fun fetchOnlinePlayers(): OnlinePlayersSnapshot {
         return try {
             val response = RetrofitInstance.api.getServer(auth = token)
 
             if (!response.isSuccessful) {
                 Log.e("BM", "HTTP ${response.code()} ${response.message()}")
                 Log.e("BM", "errorBody: ${response.errorBody()?.string()}")
-                return emptyMap()
+                return OnlinePlayersSnapshot(serverName = null, players = emptyMap())
             }
 
             val body = response.body()
             if (body == null) {
                 Log.e("BM", "Response body is null")
-                return emptyMap()
+                return OnlinePlayersSnapshot(serverName = null, players = emptyMap())
             }
 
             val result = HashMap<String, PlayerAttributes>(256)
+            val serverName = body.data?.attributes
+                ?.let { ServerAttributes(it).name }
 
             val included = body.included.orEmpty()
             for (item in included) {
@@ -73,10 +81,10 @@ class PlayerRepository {
                  */
             }
 
-            result
+            OnlinePlayersSnapshot(serverName = serverName, players = result)
         } catch (e: Exception) {
             Log.e("BM", "fetchOnlinePlayers exception: ${e.message}", e)
-            emptyMap()
+            OnlinePlayersSnapshot(serverName = null, players = emptyMap())
         }
     }
 }

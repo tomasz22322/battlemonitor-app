@@ -15,6 +15,9 @@ data class WatchedPlayer(
     // dodatkowe informacje z API
     var details: List<String>? = emptyList(),
 
+    // aktywny serwer (jeśli gracz online)
+    var currentServerName: String? = null,
+
     // metryki monitoringu sesji (lokalne)
     var sessionStartAt: Long? = null,
     var lastSeenAt: Long? = null,
