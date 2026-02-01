@@ -14,9 +14,10 @@ import com.example.battlemonitor.model.WatchedPlayer
 
 class PlayerAdapter(
     private val onRemove: (WatchedPlayer) -> Unit,
-    private val onMoveGroup: (WatchedPlayer) -> Unit,
     private val onRenameGroup: (String) -> Unit,
-    private val onToggleNotifications: (WatchedPlayer) -> Unit
+    private val onToggleNotifications: (WatchedPlayer) -> Unit,
+    private val onStartDrag: (RecyclerView.ViewHolder) -> Unit,
+    private val onReorder: (List<PlayerListItem>) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<PlayerListItem>()
@@ -52,10 +53,24 @@ class PlayerAdapter(
             is PlayerListItem.PlayerRow -> (holder as PlayerVH).bind(
                 item.player,
                 onRemove,
-                onMoveGroup,
-                onToggleNotifications
+                onToggleNotifications,
+                onStartDrag
             )
         }
+    }
+
+    fun onItemMove(fromPosition: Int, toPosition: Int): Boolean {
+        if (fromPosition == toPosition) return false
+        val fromItem = items.getOrNull(fromPosition) as? PlayerListItem.PlayerRow ?: return false
+        val toItem = items.getOrNull(toPosition) as? PlayerListItem.PlayerRow ?: return false
+        items[fromPosition] = toItem
+        items[toPosition] = fromItem
+        notifyItemMoved(fromPosition, toPosition)
+        return true
+    }
+
+    fun onDragFinished() {
+        onReorder(items.toList())
     }
 
     private fun createHeaderView(parent: ViewGroup): TextView {
@@ -105,8 +120,8 @@ class PlayerAdapter(
         fun bind(
             item: WatchedPlayer,
             onRemove: (WatchedPlayer) -> Unit,
-            onMoveGroup: (WatchedPlayer) -> Unit,
-            onToggleNotifications: (WatchedPlayer) -> Unit
+            onToggleNotifications: (WatchedPlayer) -> Unit,
+            onStartDrag: (RecyclerView.ViewHolder) -> Unit
         ) {
 
             tvName.text = item.resolvedName.ifBlank { item.key }
@@ -142,7 +157,7 @@ class PlayerAdapter(
 
             btnRemove.setOnClickListener { onRemove(item) }
             itemView.setOnLongClickListener {
-                onMoveGroup(item)
+                onStartDrag(this)
                 true
             }
         }
