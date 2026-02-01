@@ -23,9 +23,29 @@ class MainActivity : AppCompatActivity() {
         val btnAdd = findViewById<Button>(R.id.btnAdd)
         val rv = findViewById<RecyclerView>(R.id.rvPlayers)
 
-        val adapter = PlayerAdapter { player ->
-            vm.removePlayer(player)
-        }
+        val adapter = PlayerAdapter(
+            onRemove = { player ->
+                vm.removePlayer(player)
+            },
+            onMoveGroup = { player ->
+                showGroupDialog(
+                    title = "Zmień grupę",
+                    defaultValue = player.group.ifBlank { "DEFAULT" },
+                    onChosen = { group ->
+                        vm.movePlayerToGroup(player, group)
+                    }
+                )
+            },
+            onRenameGroup = { group ->
+                showGroupDialog(
+                    title = "Zmień nazwę grupy",
+                    defaultValue = group,
+                    onChosen = { newName ->
+                        vm.renameGroup(group, newName)
+                    }
+                )
+            }
+        )
 
         rv.layoutManager = LinearLayoutManager(this)
         rv.adapter = adapter
@@ -35,6 +55,8 @@ class MainActivity : AppCompatActivity() {
             if (key.isBlank()) return@setOnClickListener
 
             showGroupDialog(
+                title = "Grupa gracza",
+                defaultValue = "DEFAULT",
                 onChosen = { group ->
                     vm.addPlayer(key, group)
                     et.setText("")
@@ -47,15 +69,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showGroupDialog(onChosen: (String) -> Unit) {
+    private fun showGroupDialog(
+        title: String,
+        defaultValue: String,
+        onChosen: (String) -> Unit
+    ) {
         val input = EditText(this).apply {
             hint = "np. Friends / Solo / PL"
-            setText("DEFAULT")
+            setText(defaultValue)
             setSelection(text.length)
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Grupa gracza")
+            .setTitle(title)
             .setView(input)
             .setNegativeButton("Anuluj", null)
             .setPositiveButton("OK") { _, _ ->

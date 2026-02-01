@@ -51,6 +51,27 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         publish()
     }
 
+    fun renameGroup(oldGroup: String, newGroup: String) {
+        val normalizedOld = oldGroup.trim().ifBlank { "DEFAULT" }
+        val normalizedNew = newGroup.trim().ifBlank { "DEFAULT" }
+        if (normalizedOld.equals(normalizedNew, ignoreCase = false)) {
+            return
+        }
+
+        var changed = false
+        watchedPlayers.forEach { player ->
+            if (player.group.trim().ifBlank { "DEFAULT" } == normalizedOld) {
+                player.group = normalizedNew
+                changed = true
+            }
+        }
+
+        if (changed) {
+            storage.save(watchedPlayers)
+            publish()
+        }
+    }
+
     fun getGroups(): List<String> {
         val fromPlayers = watchedPlayers
             .map { it.group.ifBlank { "DEFAULT" } }
@@ -137,7 +158,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
                 val apiSeconds = found.bestSeconds()
                 val secondsToShow = when {
                     apiSeconds != null && apiSeconds > 0 -> apiSeconds
-                    item.sessionStartMs != null -> ((now - item.sessionStartMs!!) / 1000L).toInt()
+                    item.sessionStartMs != null -> (now - item.sessionStartMs!!) / 1000L
                     else -> null
                 }
 
@@ -162,7 +183,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun formatTime(seconds: Int): String {
+    private fun formatTime(seconds: Long): String {
         val hours = seconds / 3600
         val minutes = (seconds % 3600) / 60
         return "${hours}h ${minutes}m"

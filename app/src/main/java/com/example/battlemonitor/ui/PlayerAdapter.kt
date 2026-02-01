@@ -13,7 +13,9 @@ import com.example.battlemonitor.R
 import com.example.battlemonitor.model.WatchedPlayer
 
 class PlayerAdapter(
-    private val onRemove: (WatchedPlayer) -> Unit
+    private val onRemove: (WatchedPlayer) -> Unit,
+    private val onMoveGroup: (WatchedPlayer) -> Unit,
+    private val onRenameGroup: (String) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<PlayerListItem>()
@@ -45,8 +47,8 @@ class PlayerAdapter(
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
-            is PlayerListItem.Header -> (holder as HeaderVH).bind(item.title)
-            is PlayerListItem.PlayerRow -> (holder as PlayerVH).bind(item.player, onRemove)
+            is PlayerListItem.Header -> (holder as HeaderVH).bind(item.title, onRenameGroup)
+            is PlayerListItem.PlayerRow -> (holder as PlayerVH).bind(item.player, onRemove, onMoveGroup)
         }
     }
 
@@ -73,8 +75,12 @@ class PlayerAdapter(
 
     class HeaderVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tv: TextView = itemView as TextView
-        fun bind(title: String) {
+        fun bind(title: String, onRenameGroup: (String) -> Unit) {
             tv.text = title
+            tv.setOnLongClickListener {
+                onRenameGroup(title)
+                true
+            }
         }
     }
 
@@ -85,7 +91,11 @@ class PlayerAdapter(
         private val btnRemove: TextView = itemView.findViewById(R.id.btnRemove)
         private val statusBar: View = itemView.findViewById(R.id.vStatus)
 
-        fun bind(item: WatchedPlayer, onRemove: (WatchedPlayer) -> Unit) {
+        fun bind(
+            item: WatchedPlayer,
+            onRemove: (WatchedPlayer) -> Unit,
+            onMoveGroup: (WatchedPlayer) -> Unit
+        ) {
 
             tvName.text = item.resolvedName.ifBlank { item.key }
 
@@ -107,6 +117,10 @@ class PlayerAdapter(
             )
 
             btnRemove.setOnClickListener { onRemove(item) }
+            itemView.setOnLongClickListener {
+                onMoveGroup(item)
+                true
+            }
         }
     }
 }
