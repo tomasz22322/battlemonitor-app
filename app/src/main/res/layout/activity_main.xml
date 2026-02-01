@@ -27,16 +27,6 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/btnRefresh"
-            android:layout_width="wrap_content"
-            android:layout_height="34dp"
-            android:background="@drawable/bg_notify_button"
-            android:paddingHorizontal="12dp"
-            android:text="Odśwież"
-            android:textAllCaps="false"
-            android:textColor="@color/text_primary"
-            android:textSize="12sp" />
     </LinearLayout>
 
     <!-- Pasek dodawania (nick/id + grupa + dodaj) -->
@@ -51,7 +41,7 @@
             android:layout_height="40dp"
             android:layout_weight="1"
             android:background="@drawable/bg_input"
-            android:hint="Nick / Steam ID"
+            android:hint="Nick"
             android:singleLine="true"
             android:paddingHorizontal="12dp"
             android:paddingVertical="8dp"

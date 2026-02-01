@@ -140,12 +140,6 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         return sortedKeys.map { key -> displayNames[key] ?: DEFAULT_GROUP }
     }
 
-    fun refreshNow() {
-        viewModelScope.launch {
-            scanServer()
-        }
-    }
-
     private fun publish() {
         _items.value = buildListItems(watchedPlayers)
     }
