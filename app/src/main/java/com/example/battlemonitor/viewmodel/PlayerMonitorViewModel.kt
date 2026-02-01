@@ -11,6 +11,10 @@ import kotlinx.coroutines.launch
 
 class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
+    companion object {
+        private const val DEFAULT_GROUP = "DEFAULT"
+    }
+
     private val repository = PlayerRepository()
     private val storage = PlayerStorage(app.applicationContext)
 
@@ -32,7 +36,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         watchedPlayers.add(
             WatchedPlayer(
                 key = trimmed,
-                group = group.trim().ifBlank { "DEFAULT" }
+                group = resolveGroupName(group)
             )
         )
         storage.save(watchedPlayers)
@@ -46,21 +50,33 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun movePlayerToGroup(player: WatchedPlayer, newGroup: String) {
-        player.group = newGroup.trim().ifBlank { "DEFAULT" }
-        storage.save(watchedPlayers)
-        publish()
+        val resolvedGroup = resolveGroupName(newGroup)
+        if (player.group != resolvedGroup) {
+            player.group = resolvedGroup
+            storage.save(watchedPlayers)
+            publish()
+        }
     }
 
     fun renameGroup(oldGroup: String, newGroup: String) {
-        val normalizedOld = oldGroup.trim().ifBlank { "DEFAULT" }
-        val normalizedNew = newGroup.trim().ifBlank { "DEFAULT" }
-        if (normalizedOld.equals(normalizedNew, ignoreCase = false)) {
+        val normalizedOld = normalizeGroupName(oldGroup)
+        val normalizedNew = normalizeGroupName(newGroup)
+        val oldKey = groupKey(normalizedOld)
+        val newKey = groupKey(normalizedNew)
+
+        if (oldKey == newKey && normalizedOld == normalizedNew) {
             return
+        }
+
+        val keysToUpdate = if (oldKey == newKey) {
+            setOf(oldKey)
+        } else {
+            setOf(oldKey, newKey)
         }
 
         var changed = false
         watchedPlayers.forEach { player ->
-            if (player.group.trim().ifBlank { "DEFAULT" } == normalizedOld) {
+            if (groupKey(player.group) in keysToUpdate && player.group != normalizedNew) {
                 player.group = normalizedNew
                 changed = true
             }
@@ -73,12 +89,9 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun getGroups(): List<String> {
-        val fromPlayers = watchedPlayers
-            .map { it.group.ifBlank { "DEFAULT" } }
-            .distinct()
-            .sortedBy { it.lowercase() }
-
-        return (listOf("DEFAULT") + fromPlayers).distinct()
+        val displayNames = buildGroupDisplayNames(watchedPlayers)
+        val sortedKeys = sortGroupKeys(displayNames)
+        return sortedKeys.map { key -> displayNames[key] ?: DEFAULT_GROUP }
     }
 
     private fun publish() {
@@ -86,14 +99,16 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun buildListItems(players: List<WatchedPlayer>): List<PlayerListItem> {
-        val grouped = players
-            .groupBy { it.group.ifBlank { "DEFAULT" } }
-            .toSortedMap(compareBy { it.lowercase() })
+        val displayNames = buildGroupDisplayNames(players)
+        val grouped = players.groupBy { groupKey(it.group) }
+        val sortedKeys = sortGroupKeys(displayNames).filter { grouped.containsKey(it) }
 
         val out = mutableListOf<PlayerListItem>()
 
-        grouped.forEach { (group, list) ->
-            out.add(PlayerListItem.Header(group))
+        sortedKeys.forEach { key ->
+            val list = grouped[key] ?: emptyList()
+            val displayName = displayNames[key] ?: DEFAULT_GROUP
+            out.add(PlayerListItem.Header(displayName))
 
             val sortedPlayers = list.sortedWith(
                 compareByDescending<WatchedPlayer> { it.online }
@@ -104,6 +119,37 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         return out
+    }
+
+    private fun normalizeGroupName(name: String?): String {
+        val trimmed = name?.trim().orEmpty()
+        return if (trimmed.isBlank()) DEFAULT_GROUP else trimmed
+    }
+
+    private fun groupKey(name: String?): String = normalizeGroupName(name).lowercase()
+
+    private fun resolveGroupName(input: String): String {
+        val normalized = normalizeGroupName(input)
+        val key = groupKey(normalized)
+        val existing = watchedPlayers.firstOrNull { groupKey(it.group) == key }?.group
+        return normalizeGroupName(existing ?: normalized)
+    }
+
+    private fun buildGroupDisplayNames(players: List<WatchedPlayer>): Map<String, String> {
+        val displayNames = linkedMapOf(groupKey(DEFAULT_GROUP) to DEFAULT_GROUP)
+        players.forEach { player ->
+            val normalized = normalizeGroupName(player.group)
+            displayNames[groupKey(normalized)] = normalized
+        }
+        return displayNames
+    }
+
+    private fun sortGroupKeys(displayNames: Map<String, String>): List<String> {
+        val defaultKey = groupKey(DEFAULT_GROUP)
+        return displayNames.keys.sortedWith(
+            compareBy<String> { it != defaultKey }
+                .thenBy { displayNames[it]?.lowercase() ?: it }
+        )
     }
 
     private fun startMonitoring() {
