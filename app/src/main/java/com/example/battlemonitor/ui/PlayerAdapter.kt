@@ -138,7 +138,7 @@ class PlayerAdapter(
 
             val serverName = item.currentServerName?.takeIf { it.isNotBlank() }
             if (serverName != null) {
-                metaParts.add("Serwer: $serverName")
+                metaParts.add(serverName)
             }
 
             val metaText = metaParts.joinToString(separator = "\n")
