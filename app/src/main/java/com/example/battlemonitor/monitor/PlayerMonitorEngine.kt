@@ -189,7 +189,8 @@ class PlayerMonitorEngine(
         details.add("ID: ${item.resolvedId ?: "brak danych"}")
         details.add("Utworzono: ${formatTimestamp(item.createdAt)}")
         details.add("Zaktualizowano: ${formatTimestamp(item.updatedAt)}")
-        val staySeconds = item.updatedAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
+        val updatedAtForStay = parseUpdatedAtFromDetails(apiDetails) ?: item.updatedAt
+        val staySeconds = updatedAtForStay?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(
             "Czas przebywania: ${
                 if (staySeconds != null) formatDuration(staySeconds)
@@ -197,7 +198,7 @@ class PlayerMonitorEngine(
             }"
         )
         details.add("Ostatnio widziany: ${formatTimestamp(item.lastSeenApiAt)}")
-        val serverSeconds = item.updatedAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
+        val serverSeconds = updatedAtForStay?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(
             "Gra na serwerze od: ${
                 if (serverSeconds != null) formatServerDuration(serverSeconds)
@@ -208,6 +209,20 @@ class PlayerMonitorEngine(
         details.addAll(apiDetails)
 
         return details
+    }
+
+    private fun parseUpdatedAtFromDetails(details: List<String>): Long? {
+        return details.asSequence()
+            .mapNotNull { entry ->
+                val parts = entry.split(":", limit = 2)
+                if (parts.size < 2) return@mapNotNull null
+                if (!parts[0].trim().equals("Updated At", ignoreCase = true)) {
+                    return@mapNotNull null
+                }
+                val value = parts[1].trim()
+                runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()
+            }
+            .firstOrNull()
     }
 
     private fun mergeDetails(details: List<String>): List<String> {
