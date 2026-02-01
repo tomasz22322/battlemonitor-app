@@ -1,6 +1,11 @@
 package com.example.battlemonitor.viewmodel
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.*
 import com.example.battlemonitor.data.PlayerRepository
 import com.example.battlemonitor.data.PlayerStorage
@@ -13,10 +18,12 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val DEFAULT_GROUP = "DEFAULT"
+        private const val STATUS_CHANNEL_ID = "player_status"
     }
 
     private val repository = PlayerRepository()
     private val storage = PlayerStorage(app.applicationContext)
+    private val notificationManager = NotificationManagerCompat.from(app.applicationContext)
 
     private val watchedPlayers = mutableListOf<WatchedPlayer>()
 
@@ -25,6 +32,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         watchedPlayers.addAll(storage.load())
+        createNotificationChannel()
         publish()
         startMonitoring()
     }
@@ -86,6 +94,13 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             storage.save(watchedPlayers)
             publish()
         }
+    }
+
+    fun toggleNotifications(player: WatchedPlayer) {
+        val enabledNow = player.notificationsEnabled != false
+        player.notificationsEnabled = !enabledNow
+        storage.save(watchedPlayers)
+        publish()
     }
 
     fun getGroups(): List<String> {
@@ -217,6 +232,10 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             ) {
                 changed = true
             }
+
+            if (wasOnline != item.online && item.notificationsEnabled != false) {
+                sendStatusNotification(item, item.online)
+            }
         }
 
         if (changed) {
@@ -229,5 +248,39 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         val hours = seconds / 3600
         val minutes = (seconds % 3600) / 60
         return "${hours}h ${minutes}m"
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                STATUS_CHANNEL_ID,
+                "Zmiany online/offline",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Powiadomienia o zmianach statusu graczy"
+            }
+            val manager =
+                getApplication<Application>().getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun sendStatusNotification(player: WatchedPlayer, isOnline: Boolean) {
+        val displayName = player.resolvedName.ifBlank { player.key }
+        val title = if (isOnline) "Gracz online" else "Gracz offline"
+        val message = if (isOnline) {
+            "$displayName jest online"
+        } else {
+            "$displayName jest offline"
+        }
+
+        val notification = NotificationCompat.Builder(getApplication(), STATUS_CHANNEL_ID)
+            .setSmallIcon(com.example.battlemonitor.R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(displayName.hashCode(), notification)
     }
 }

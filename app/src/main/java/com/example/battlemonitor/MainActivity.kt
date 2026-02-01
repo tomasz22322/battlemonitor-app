@@ -44,6 +44,9 @@ class MainActivity : AppCompatActivity() {
                         vm.renameGroup(group, newName)
                     }
                 )
+            },
+            onToggleNotifications = { player ->
+                vm.toggleNotifications(player)
             }
         )
 

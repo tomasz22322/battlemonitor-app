@@ -15,6 +15,9 @@ data class WatchedPlayer(
     // dodatkowe informacje z API
     var details: List<String>? = emptyList(),
 
+    // czy wysyłać powiadomienia o zmianie online/offline
+    var notificationsEnabled: Boolean? = null,
+
     // ✅ ręczne grupowanie
     var group: String = "DEFAULT"
 )
