@@ -11,6 +11,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.battlemonitor.ui.PlayerAdapter
@@ -32,18 +33,11 @@ class MainActivity : AppCompatActivity() {
         val btnAdd = findViewById<Button>(R.id.btnAdd)
         val rv = findViewById<RecyclerView>(R.id.rvPlayers)
 
+        lateinit var itemTouchHelper: ItemTouchHelper
+
         val adapter = PlayerAdapter(
             onRemove = { player ->
                 vm.removePlayer(player)
-            },
-            onMoveGroup = { player ->
-                showGroupDialog(
-                    title = "Zmień grupę",
-                    defaultValue = player.group.ifBlank { "DEFAULT" },
-                    onChosen = { group ->
-                        vm.movePlayerToGroup(player, group)
-                    }
-                )
             },
             onRenameGroup = { group ->
                 showGroupDialog(
@@ -58,11 +52,52 @@ class MainActivity : AppCompatActivity() {
                 if (ensureNotificationPermission()) {
                     vm.toggleNotifications(player)
                 }
+            },
+            onStartDrag = { viewHolder ->
+                itemTouchHelper.startDrag(viewHolder)
+            },
+            onReorder = { items ->
+                vm.reorderPlayers(items)
             }
         )
 
         rv.layoutManager = LinearLayoutManager(this)
         rv.adapter = adapter
+
+        val touchCallback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+            0
+        ) {
+            override fun getMovementFlags(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder
+            ): Int {
+                return if (viewHolder.itemViewType == 0) {
+                    0
+                } else {
+                    makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
+                }
+            }
+
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                if (target.itemViewType == 0) return false
+                return adapter.onItemMove(viewHolder.bindingAdapterPosition, target.bindingAdapterPosition)
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                adapter.onDragFinished()
+            }
+        }
+
+        itemTouchHelper = ItemTouchHelper(touchCallback)
+        itemTouchHelper.attachToRecyclerView(rv)
 
         btnAdd.setOnClickListener {
             val key = et.text.toString().trim()
