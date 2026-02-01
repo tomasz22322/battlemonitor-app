@@ -189,6 +189,13 @@ class PlayerMonitorEngine(
         details.add("ID: ${item.resolvedId ?: "brak danych"}")
         details.add("Utworzono: ${formatTimestamp(item.createdAt)}")
         details.add("Zaktualizowano: ${formatTimestamp(item.updatedAt)}")
+        val staySeconds = item.updatedAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
+        details.add(
+            "Czas przebywania: ${
+                if (staySeconds != null) formatDuration(staySeconds)
+                else "brak danych"
+            }"
+        )
         details.add("Ostatnio widziany: ${formatTimestamp(item.lastSeenApiAt)}")
         val serverSeconds = item.updatedAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(
