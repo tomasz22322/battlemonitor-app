@@ -115,7 +115,7 @@ class PlayerAdapter(
 
             tvMeta.text = metaParts.joinToString(" • ")
 
-            val detailsText = item.details.joinToString(separator = "\n")
+            val detailsText = item.details.orEmpty().joinToString(separator = "\n")
             tvDetails.text = detailsText
             tvDetails.visibility = if (detailsText.isBlank()) View.GONE else View.VISIBLE
 

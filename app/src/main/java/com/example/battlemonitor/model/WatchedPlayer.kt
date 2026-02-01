@@ -13,7 +13,7 @@ data class WatchedPlayer(
     var playTime: String = "",
 
     // dodatkowe informacje z API
-    var details: List<String> = emptyList(),
+    var details: List<String>? = emptyList(),
 
     // ✅ ręczne grupowanie
     var group: String = "DEFAULT"
