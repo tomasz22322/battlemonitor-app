@@ -183,7 +183,8 @@ class PlayerMonitorEngine(
         val details = mutableListOf<String>()
 
         details.add("ID: ${item.resolvedId ?: "brak danych"}")
-        details.add("Last seen: ${formatTimestamp(item.lastSeenApiAt)}")
+        details.add("Utworzono: ${formatTimestamp(item.createdAt)}")
+        details.add("Zaktualizowano: ${formatTimestamp(item.updatedAt)}")
         val serverSeconds = item.updatedAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(
             "Czas na serwerze: ${
