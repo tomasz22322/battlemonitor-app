@@ -136,18 +136,14 @@ class PlayerAdapter(
 
             metaParts.add(if (item.online) "Online" else "Offline")
 
-            if (!item.resolvedId.isNullOrBlank()) {
-                metaParts.add("ID: ${item.resolvedId}")
+            val serverName = item.currentServerName?.takeIf { it.isNotBlank() }
+            if (serverName != null) {
+                metaParts.add("Serwer: $serverName")
             }
 
-            if (item.online) {
-                val playTime = item.playTime.takeIf { it.isNotBlank() && it != "??" }
-                if (playTime != null) {
-                    metaParts.add(playTime)
-                }
-            }
-
-            tvMeta.text = metaParts.joinToString(" • ")
+            val metaText = metaParts.joinToString(" • ")
+            tvMeta.text = metaText
+            tvMeta.visibility = if (metaText.isBlank()) View.GONE else View.VISIBLE
 
             val detailsText = item.details.orEmpty().joinToString(separator = "\n")
             tvDetails.text = detailsText

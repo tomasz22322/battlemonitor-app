@@ -16,6 +16,10 @@ class PlayerMonitorEngine(
     private val repository: PlayerRepository
 ) {
 
+    private companion object {
+        private const val INFO_TTL_MS = 60_000L
+    }
+
     suspend fun scan(players: MutableList<WatchedPlayer>): ScanResult {
         val snapshot = repository.fetchOnlinePlayers()
         val onlineMap = snapshot.players
@@ -49,6 +53,9 @@ class PlayerMonitorEngine(
             val oldTime = item.playTime
             val oldDetails = item.details.orEmpty()
             val oldServer = item.currentServerName
+            val oldCreatedAt = item.createdAt
+            val oldUpdatedAt = item.updatedAt
+            val oldLastSeenApiAt = item.lastSeenApiAt
 
             if (found != null) {
                 updateOnlinePlayer(item, found, serverName, now, wasOnline, sessionStart)
@@ -56,11 +63,28 @@ class PlayerMonitorEngine(
                 updateOfflinePlayer(item, now, wasOnline)
             }
 
+            refreshPlayerInfoIfNeeded(item, now)
+
+            val sessionSeconds = if (item.online && item.sessionStartAt != null) {
+                ((now - item.sessionStartAt!!) / 1000L).coerceAtLeast(0)
+            } else {
+                null
+            }
+            item.details = mergeDetails(
+                buildDerivedDetails(
+                    item = item,
+                    sessionSeconds = sessionSeconds
+                )
+            )
+
             if (wasOnline != item.online ||
                 oldName != item.resolvedName ||
                 oldTime != item.playTime ||
                 oldDetails != item.details.orEmpty() ||
-                oldServer != item.currentServerName
+                oldServer != item.currentServerName ||
+                oldCreatedAt != item.createdAt ||
+                oldUpdatedAt != item.updatedAt ||
+                oldLastSeenApiAt != item.lastSeenApiAt
             ) {
                 changed = true
             }
@@ -85,9 +109,11 @@ class PlayerMonitorEngine(
 
         val newName = found.name ?: item.resolvedName.ifBlank { item.key }
         item.resolvedName = newName
+        if (item.resolvedId.isNullOrBlank() && !found.id.isNullOrBlank()) {
+            item.resolvedId = found.id
+        }
         if (serverName != null && serverName != item.currentServerName) {
             item.currentServerName = serverName
-            item.sessionStartAt = null
         } else if (serverName != null) {
             item.currentServerName = serverName
         }
@@ -99,36 +125,22 @@ class PlayerMonitorEngine(
 
         item.lastSeenAt = now
         if (!wasOnline) {
-            item.sessionStartAt = now
             item.joinHourCounts = incrementHourCount(item.joinHourCounts, now)
         }
 
         if (sessionStart != null) {
             item.sessionStartAt = sessionStart
-        }
-
-        val apiSeconds = found.bestSeconds()
-        if (item.sessionStartAt == null) {
-            item.sessionStartAt = if (apiSeconds != null && apiSeconds > 0) {
-                now - (apiSeconds * 1000L)
-            } else {
-                now
-            }
+        } else if (!wasOnline) {
+            item.sessionStartAt = null
         }
 
         val sessionSeconds = item.sessionStartAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
-        val secondsToShow = sessionSeconds?.takeIf { it > 0 } ?: apiSeconds
+        val secondsToShow = sessionSeconds?.takeIf { it > 0 }
         item.playTime = when {
             secondsToShow == null || secondsToShow <= 0 -> "??"
             else -> formatDuration(secondsToShow)
         }
 
-        val derivedDetails = buildDerivedDetails(
-            item = item,
-            now = now,
-            sessionSeconds = sessionSeconds
-        )
-        item.details = mergeDetails(derivedDetails + found.buildDetails())
     }
 
     private fun updateOfflinePlayer(
@@ -152,48 +164,39 @@ class PlayerMonitorEngine(
         item.playTime = ""
         item.currentServerName = null
 
-        val derivedDetails = buildDerivedDetails(
-            item = item,
-            now = now,
-            sessionSeconds = null
-        )
-        item.details = mergeDetails(derivedDetails)
+    }
+
+    private suspend fun refreshPlayerInfoIfNeeded(item: WatchedPlayer, now: Long) {
+        val resolvedId = item.resolvedId?.takeIf { it.isNotBlank() } ?: return
+        val lastFetched = item.infoFetchedAt ?: 0L
+        if (now - lastFetched < INFO_TTL_MS) return
+
+        val info = repository.fetchPlayerInfo(resolvedId)
+        if (info != null) {
+            item.resolvedId = info.id
+            item.createdAt = info.createdAt
+            item.updatedAt = info.updatedAt
+            item.lastSeenApiAt = info.lastSeenAt
+        }
+        item.infoFetchedAt = now
     }
 
     private fun buildDerivedDetails(
         item: WatchedPlayer,
-        now: Long,
         sessionSeconds: Long?
     ): List<String> {
         val details = mutableListOf<String>()
 
-        if (item.online && !item.currentServerName.isNullOrBlank()) {
-            details.add("Serwer: ${item.currentServerName}")
-        }
-
-        if (item.online && sessionSeconds != null) {
-            details.add("Na serwerze: ${formatDuration(sessionSeconds)}")
-        } else if (!item.online && item.lastSessionSeconds != null) {
-            details.add("Ostatnia sesja: ${formatDuration(item.lastSessionSeconds!!)}")
-        }
-
-        val totalSeconds = (item.totalSessionSeconds ?: 0L) +
-            if (item.online && sessionSeconds != null) sessionSeconds else 0L
-        if (totalSeconds > 0) {
-            details.add("Łącznie zmonitorowane: ${formatDuration(totalSeconds)}")
-        }
-
-        if (item.online && item.sessionStartAt != null) {
-            details.add("Na serwerze od: ${formatDateTime(item.sessionStartAt!!)}")
-        } else if (!item.online && item.lastSeenAt != null) {
-            details.add("Ostatnio widziany: ${formatRelativeTime(item.lastSeenAt!!, now)}")
-        }
-
-        val joinInfo = formatTypicalHour(item.joinHourCounts, "Najczęściej dołącza")
-        if (joinInfo != null) details.add(joinInfo)
-
-        val leaveInfo = formatTypicalHour(item.leaveHourCounts, "Najczęściej rozłącza")
-        if (leaveInfo != null) details.add(leaveInfo)
+        details.add("ID: ${item.resolvedId ?: "brak danych"}")
+        details.add("Created at: ${formatTimestamp(item.createdAt)}")
+        details.add("Updated at: ${formatTimestamp(item.updatedAt)}")
+        details.add("Last seen: ${formatTimestamp(item.lastSeenApiAt)}")
+        details.add(
+            "Czas na serwerze: ${
+                if (item.online && sessionSeconds != null) formatDuration(sessionSeconds)
+                else "brak danych"
+            }"
+        )
 
         return details
     }
@@ -231,18 +234,8 @@ class PlayerMonitorEngine(
             .format(formatter)
     }
 
-    private fun formatRelativeTime(fromMillis: Long, nowMillis: Long): String {
-        val diffSeconds = ((nowMillis - fromMillis) / 1000L).coerceAtLeast(0)
-        val minutes = diffSeconds / 60
-        val hours = minutes / 60
-        val days = hours / 24
-
-        return when {
-            diffSeconds < 60 -> "przed chwilą"
-            minutes < 60 -> "${minutes}m temu"
-            hours < 24 -> "${hours}h temu"
-            else -> "${days}d temu"
-        }
+    private fun formatTimestamp(millis: Long?): String {
+        return millis?.let { formatDateTime(it) } ?: "brak danych"
     }
 
     private fun incrementHourCount(counts: List<Int>?, timestamp: Long): List<Int> {
@@ -256,13 +249,4 @@ class PlayerMonitorEngine(
         return next
     }
 
-    private fun formatTypicalHour(counts: List<Int>?, label: String): String? {
-        val list = counts ?: return null
-        if (list.isEmpty()) return null
-        val max = list.maxOrNull() ?: return null
-        if (max <= 0) return null
-        val hour = list.indexOfFirst { it == max }.takeIf { it >= 0 } ?: return null
-        val hourLabel = String.format("%02d:00", hour)
-        return "$label: $hourLabel (${max}x)"
-    }
 }

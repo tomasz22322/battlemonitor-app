@@ -1,6 +1,7 @@
 package com.example.battlemonitor.api
 
 import com.example.battlemonitor.model.BattleMetricsResponse
+import com.example.battlemonitor.model.PlayerDetailsResponse
 import com.example.battlemonitor.model.PlayerSessionResponse
 import retrofit2.Response
 import retrofit2.http.GET
@@ -24,4 +25,10 @@ interface BattleMetricsApi {
         @Query("page[size]") pageSize: Int = 1,
         @Header("Authorization") auth: String
     ): Response<PlayerSessionResponse>
+
+    @GET("players/{playerId}")
+    suspend fun getPlayerDetails(
+        @Path("playerId") playerId: String,
+        @Header("Authorization") auth: String
+    ): Response<PlayerDetailsResponse>
 }
