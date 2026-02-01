@@ -163,7 +163,6 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun scanServer() {
         val onlineMap = repository.fetchOnlinePlayers()
-        val now = System.currentTimeMillis()
 
         var changed = false
 
@@ -187,10 +186,6 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             if (found != null) {
                 item.online = true
 
-                if (!wasOnline) {
-                    item.sessionStartMs = now
-                }
-
                 val newName = found.name ?: item.resolvedName.ifBlank { item.key }
                 item.resolvedName = newName
 
@@ -201,13 +196,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
                     if (k.all { it.isDigit() }) item.resolvedId = k
                 }
 
-                val apiSeconds = found.bestSeconds()
-                val secondsToShow = when {
-                    apiSeconds != null && apiSeconds > 0 -> apiSeconds
-                    item.sessionStartMs != null -> (now - item.sessionStartMs!!) / 1000L
-                    else -> null
-                }
-
+                val secondsToShow = found.bestSeconds()
                 item.playTime = when {
                     secondsToShow == null || secondsToShow <= 0 -> "??"
                     else -> formatTime(secondsToShow)
@@ -215,7 +204,6 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             } else {
                 item.online = false
                 item.playTime = ""
-                item.sessionStartMs = null
             }
 
             if (wasOnline != item.online || oldName != item.resolvedName || oldTime != item.playTime) {
