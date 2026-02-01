@@ -1,12 +1,9 @@
 package com.example.battlemonitor.ui
 
 import android.graphics.Color
-import android.graphics.Typeface
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
-import android.util.TypedValue
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,6 +15,7 @@ import com.example.battlemonitor.model.WatchedPlayer
 class PlayerAdapter(
     private val onRemove: (WatchedPlayer) -> Unit,
     private val onRenameGroup: (String) -> Unit,
+    private val onToggleGroupNotifications: (String) -> Unit,
     private val onToggleNotifications: (WatchedPlayer) -> Unit,
     private val onStartDrag: (RecyclerView.ViewHolder) -> Unit,
     private val onReorder: (List<PlayerListItem>) -> Unit
@@ -32,6 +30,8 @@ class PlayerAdapter(
         notifyDataSetChanged()
     }
 
+    fun getItems(): List<PlayerListItem> = items.toList()
+
     override fun getItemViewType(position: Int): Int {
         return when (items[position]) {
             is PlayerListItem.Header -> 0
@@ -41,7 +41,9 @@ class PlayerAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return if (viewType == 0) {
-            HeaderVH(createHeaderView(parent))
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_group_header, parent, false)
+            HeaderVH(view)
         } else {
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_player, parent, false)
@@ -53,7 +55,12 @@ class PlayerAdapter(
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
-            is PlayerListItem.Header -> (holder as HeaderVH).bind(item.title, onRenameGroup)
+            is PlayerListItem.Header -> (holder as HeaderVH).bind(
+                item.title,
+                item.notificationsEnabled,
+                onRenameGroup,
+                onToggleGroupNotifications
+            )
             is PlayerListItem.PlayerRow -> (holder as PlayerVH).bind(
                 item.player,
                 onRemove,
@@ -83,35 +90,24 @@ class PlayerAdapter(
         onReorder(items.toList())
     }
 
-    private fun createHeaderView(parent: ViewGroup): TextView {
-        val tv = TextView(parent.context)
-        val params = RecyclerView.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        params.setMargins(dp(parent, 6), dp(parent, 14), dp(parent, 6), dp(parent, 6))
-        tv.layoutParams = params
-
-        val padH = dp(parent, 10)
-        tv.setPadding(padH, dp(parent, 8), padH, dp(parent, 8))
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-        tv.setTypeface(tv.typeface, Typeface.BOLD)
-        tv.setTextColor(Color.parseColor("#BDBDBD"))
-        tv.gravity = Gravity.START
-        tv.setBackgroundResource(R.drawable.bg_group_header)
-        return tv
-    }
-
-    private fun dp(parent: ViewGroup, v: Int): Int {
-        val d = parent.resources.displayMetrics.density
-        return (v * d).toInt()
-    }
-
     class HeaderVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val tv: TextView = itemView as TextView
-        fun bind(title: String, onRenameGroup: (String) -> Unit) {
+        private val tv: TextView = itemView.findViewById(R.id.tvGroupTitle)
+        private val btnNotify: TextView = itemView.findViewById(R.id.btnGroupNotify)
+
+        fun bind(
+            title: String,
+            notificationsEnabled: Boolean,
+            onRenameGroup: (String) -> Unit,
+            onToggleGroupNotifications: (String) -> Unit
+        ) {
             tv.text = title
-            tv.setOnLongClickListener {
+            btnNotify.text = if (notificationsEnabled) "🔔" else "🔕"
+            btnNotify.setTextColor(
+                if (notificationsEnabled) Color.parseColor("#38BDF8")
+                else Color.parseColor("#94A3B8")
+            )
+            btnNotify.setOnClickListener { onToggleGroupNotifications(title) }
+            itemView.setOnLongClickListener {
                 onRenameGroup(title)
                 true
             }
