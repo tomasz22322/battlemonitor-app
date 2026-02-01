@@ -15,6 +15,15 @@ data class WatchedPlayer(
     // dodatkowe informacje z API
     var details: List<String>? = emptyList(),
 
+    // metryki monitoringu sesji (lokalne)
+    var sessionStartAt: Long? = null,
+    var lastSeenAt: Long? = null,
+    var lastOfflineAt: Long? = null,
+    var lastSessionSeconds: Long? = null,
+    var totalSessionSeconds: Long? = null,
+    var joinHourCounts: List<Int>? = null,
+    var leaveHourCounts: List<Int>? = null,
+
     // czy wysyłać powiadomienia o zmianie online/offline
     var notificationsEnabled: Boolean? = null,
 
