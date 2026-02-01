@@ -91,6 +91,7 @@ class PlayerAdapter(
 
         private val tvName: TextView = itemView.findViewById(R.id.tvName)
         private val tvMeta: TextView = itemView.findViewById(R.id.tvMeta)
+        private val tvDetails: TextView = itemView.findViewById(R.id.tvDetails)
         private val btnRemove: TextView = itemView.findViewById(R.id.btnRemove)
         private val statusBar: View = itemView.findViewById(R.id.vStatus)
 
@@ -113,6 +114,10 @@ class PlayerAdapter(
             }
 
             tvMeta.text = metaParts.joinToString(" • ")
+
+            val detailsText = item.details.joinToString(separator = "\n")
+            tvDetails.text = detailsText
+            tvDetails.visibility = if (detailsText.isBlank()) View.GONE else View.VISIBLE
 
             statusBar.setBackgroundColor(
                 if (item.online) Color.parseColor("#2E7D32")

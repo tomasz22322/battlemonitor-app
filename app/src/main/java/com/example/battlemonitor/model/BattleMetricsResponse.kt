@@ -9,31 +9,105 @@ data class BattleMetricsResponse(
 data class IncludedPlayer(
     val id: String? = null,
     val type: String? = null,
-    val attributes: PlayerAttributes? = null
+    @Json(name = "attributes")
+    val attributes: Map<String, Any?>? = null
 )
 
-data class PlayerAttributes(
-    val name: String? = null,
+class PlayerAttributes(private val raw: Map<String, Any?>) {
 
-    // Najczęściej spotykane nazwy pól z czasem (sekundy)
-    @Json(name = "onlineTime")
-    val onlineTime: Long? = null,
+    private val preferredDetails = listOf(
+        "steamID",
+        "steamId",
+        "steamid",
+        "steam64",
+        "playerId",
+        "country",
+        "region",
+        "online",
+        "status",
+        "lastSeen",
+        "firstSeen",
+        "createdAt",
+        "updatedAt",
+        "sessionTime",
+        "onlineTime",
+        "timePlayed",
+        "playTime",
+        "score",
+        "rank",
+        "kills",
+        "deaths",
+        "kdr",
+        "level"
+    )
 
-    @Json(name = "timePlayed")
-    val timePlayed: Long? = null,
+    val name: String? = raw["name"]?.toString()?.takeIf { it.isNotBlank() }
 
-    @Json(name = "sessionTime")
-    val sessionTime: Long? = null
-) {
     fun bestSeconds(): Long? {
-        // weź pierwsze sensowne, normalizując wartości w razie ms
-        return listOf(sessionTime, onlineTime, timePlayed)
-            .firstOrNull { it != null && it > 0 }
-            ?.let { normalizeSeconds(it) }
+        val timeKeys = listOf(
+            "sessionTime",
+            "onlineTime",
+            "timePlayed",
+            "timePlayedSeconds",
+            "secondsPlayed",
+            "playTime",
+            "playtime"
+        )
+
+        return timeKeys.asSequence()
+            .mapNotNull { key -> raw[key]?.let { normalizeSeconds(it) } }
+            .firstOrNull { it > 0 }
     }
 
-    private fun normalizeSeconds(value: Long): Long {
-        // Jeśli API zwróci ms zamiast s, zbij do sekund.
-        return if (value > 1_000_000_000L) value / 1000L else value
+    fun buildDetails(): List<String> {
+        val details = mutableListOf<String>()
+        val usedKeys = mutableSetOf<String>()
+
+        preferredDetails.forEach { key ->
+            val value = raw[key] ?: return@forEach
+            val formatted = formatValue(value) ?: return@forEach
+            details.add("${formatLabel(key)}: $formatted")
+            usedKeys.add(key)
+        }
+
+        raw.keys
+            .filterNot { it == "name" || it in usedKeys }
+            .sortedBy { it.lowercase() }
+            .forEach { key ->
+                val value = raw[key] ?: return@forEach
+                val formatted = formatValue(value) ?: return@forEach
+                details.add("${formatLabel(key)}: $formatted")
+            }
+
+        return details
+    }
+
+    private fun normalizeSeconds(value: Any): Long? {
+        val number = when (value) {
+            is Number -> value.toLong()
+            is String -> value.toLongOrNull()
+            else -> null
+        } ?: return null
+
+        return if (number > 1_000_000_000L) number / 1000L else number
+    }
+
+    private fun formatLabel(key: String): String {
+        val spaced = key.replace(Regex("([a-z])([A-Z])"), "$1 $2")
+        return spaced.replaceFirstChar { it.uppercase() }
+    }
+
+    private fun formatValue(value: Any?): String? {
+        return when (value) {
+            null -> null
+            is Boolean -> if (value) "tak" else "nie"
+            is Number -> value.toString()
+            is String -> value.takeIf { it.isNotBlank() }
+            is Map<*, *> -> value.entries.joinToString(", ") { entry ->
+                "${entry.key}:${entry.value}"
+            }
+            is List<*> -> value.joinToString(", ") { it.toString() }
+            else -> value.toString()
+        }?.takeIf { it.isNotBlank() }
     }
 }
