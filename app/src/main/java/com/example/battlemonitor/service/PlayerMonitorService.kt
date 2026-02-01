@@ -31,6 +31,7 @@ class PlayerMonitorService : Service() {
         private const val SERVICE_CHANNEL_ID = "player_monitor_service"
         private const val SERVICE_NOTIFICATION_ID = 1001
         private const val REFRESH_DELAY_MS = 10_000L
+        private const val DEFAULT_GROUP = "DEFAULT"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -38,6 +39,7 @@ class PlayerMonitorService : Service() {
     private val engine = PlayerMonitorEngine(repository)
     private lateinit var storage: PlayerStorage
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
+    private val groupOfflineState = mutableMapOf<String, Boolean>()
 
     override fun onCreate() {
         super.onCreate()
@@ -71,6 +73,8 @@ class PlayerMonitorService : Service() {
                                 sendStatusNotification(player, isOnline)
                             }
                         }
+                    val groupNotifications = storage.loadGroupNotifications()
+                    updateGroupOfflineNotifications(players, groupNotifications)
                     if (result.changed) {
                         storage.save(players)
                     }
@@ -132,6 +136,42 @@ class PlayerMonitorService : Service() {
         notificationManager.notify(displayName.hashCode(), notification)
     }
 
+    private fun updateGroupOfflineNotifications(
+        players: List<WatchedPlayer>,
+        groupNotifications: Map<String, Boolean>
+    ) {
+        val grouped = players.groupBy { groupKey(it.group) }
+        val activeKeys = grouped.keys
+        groupOfflineState.keys.retainAll(activeKeys)
+
+        grouped.forEach { (key, members) ->
+            val enabled = groupNotifications[key] ?: true
+            if (!enabled) {
+                groupOfflineState[key] = false
+                return@forEach
+            }
+            val allOffline = members.all { !it.online }
+            val wasOffline = groupOfflineState[key] ?: false
+            if (!wasOffline && allOffline && canPostNotifications()) {
+                val groupName = members.firstOrNull()?.group ?: DEFAULT_GROUP
+                sendGroupOfflineNotification(groupName)
+            }
+            groupOfflineState[key] = allOffline
+        }
+    }
+
+    private fun sendGroupOfflineNotification(groupName: String) {
+        val title = "Grupa offline"
+        val message = "Wszyscy gracze w grupie $groupName są offline"
+        val notification = NotificationCompat.Builder(this, STATUS_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setAutoCancel(true)
+            .build()
+        notificationManager.notify("group_$groupName".hashCode(), notification)
+    }
+
     private fun canPostNotifications(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             return true
@@ -140,5 +180,10 @@ class PlayerMonitorService : Service() {
             this,
             android.Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun groupKey(name: String?): String {
+        val normalized = name?.trim().orEmpty().ifBlank { DEFAULT_GROUP }
+        return normalized.lowercase()
     }
 }

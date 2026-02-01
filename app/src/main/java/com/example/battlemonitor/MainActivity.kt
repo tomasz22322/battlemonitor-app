@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.battlemonitor.service.PlayerMonitorService
+import com.example.battlemonitor.ui.GroupBackgroundDecoration
 import com.example.battlemonitor.ui.PlayerAdapter
 import com.example.battlemonitor.viewmodel.PlayerMonitorViewModel
 
@@ -51,6 +52,11 @@ class MainActivity : AppCompatActivity() {
                     }
                 )
             },
+            onToggleGroupNotifications = { group ->
+                if (ensureNotificationPermission()) {
+                    vm.toggleGroupNotifications(group)
+                }
+            },
             onToggleNotifications = { player ->
                 if (ensureNotificationPermission()) {
                     vm.toggleNotifications(player)
@@ -66,6 +72,7 @@ class MainActivity : AppCompatActivity() {
 
         rv.layoutManager = LinearLayoutManager(this)
         rv.adapter = adapter
+        rv.addItemDecoration(GroupBackgroundDecoration(this))
 
         val touchCallback = object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN,
