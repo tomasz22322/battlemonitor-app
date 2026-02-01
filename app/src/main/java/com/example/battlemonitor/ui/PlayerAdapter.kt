@@ -2,6 +2,9 @@ package com.example.battlemonitor.ui
 
 import android.graphics.Color
 import android.graphics.Typeface
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -129,8 +132,7 @@ class PlayerAdapter(
             onToggleNotifications: (WatchedPlayer) -> Unit,
             onStartDrag: (RecyclerView.ViewHolder) -> Unit
         ) {
-
-            tvName.text = item.resolvedName.ifBlank { item.key }
+            tvName.text = buildDisplayName(item)
 
             val metaText = if (item.online) {
                 val metaParts = LinkedHashSet<String>()
@@ -171,6 +173,27 @@ class PlayerAdapter(
             itemView.setOnLongClickListener {
                 onStartDrag(this)
                 true
+            }
+        }
+
+        private fun buildDisplayName(item: WatchedPlayer): CharSequence {
+            val currentName = item.resolvedName.ifBlank { item.key }
+            val originalName = item.originalName?.takeIf { it.isNotBlank() } ?: return currentName
+            if (originalName.equals(currentName, ignoreCase = true)) return currentName
+
+            val originalColor = itemView.context.getColor(R.color.text_secondary)
+            return SpannableStringBuilder().apply {
+                append(currentName)
+                append(" (")
+                val start = length
+                append(originalName)
+                setSpan(
+                    ForegroundColorSpan(originalColor),
+                    start,
+                    length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                append(")")
             }
         }
     }

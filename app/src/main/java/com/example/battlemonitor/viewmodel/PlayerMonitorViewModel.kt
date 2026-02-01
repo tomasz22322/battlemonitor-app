@@ -27,6 +27,16 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         watchedPlayers.addAll(storage.load())
+        var requiresSave = false
+        watchedPlayers.forEach { player ->
+            if (player.originalName.isNullOrBlank()) {
+                player.originalName = player.key
+                requiresSave = true
+            }
+        }
+        if (requiresSave) {
+            storage.save(watchedPlayers)
+        }
         ensureSortOrder()
         publish()
         startMonitoring()
@@ -40,6 +50,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         watchedPlayers.add(
             WatchedPlayer(
                 key = trimmed,
+                originalName = trimmed,
                 group = resolvedGroup,
                 sortOrder = nextSortOrder(resolvedGroup)
             )
