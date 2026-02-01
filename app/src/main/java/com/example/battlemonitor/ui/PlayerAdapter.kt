@@ -54,17 +54,20 @@ class PlayerAdapter(
 
     private fun createHeaderView(parent: ViewGroup): TextView {
         val tv = TextView(parent.context)
-        tv.layoutParams = RecyclerView.LayoutParams(
+        val params = RecyclerView.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
+        params.setMargins(dp(parent, 6), dp(parent, 14), dp(parent, 6), dp(parent, 6))
+        tv.layoutParams = params
 
         val padH = dp(parent, 10)
-        tv.setPadding(padH, dp(parent, 10), padH, dp(parent, 6))
+        tv.setPadding(padH, dp(parent, 8), padH, dp(parent, 8))
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         tv.setTypeface(tv.typeface, Typeface.BOLD)
         tv.setTextColor(Color.parseColor("#BDBDBD"))
         tv.gravity = Gravity.START
+        tv.setBackgroundResource(R.drawable.bg_group_header)
         return tv
     }
 

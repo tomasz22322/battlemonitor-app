@@ -12,9 +12,6 @@ data class WatchedPlayer(
     // tekst do pokazania w UI (np. "2h 10m")
     var playTime: String = "",
 
-    // fallback: kiedy wykryliśmy ONLINE (jeśli API nie daje czasu)
-    var sessionStartMs: Long? = null,
-
     // ✅ ręczne grupowanie
     var group: String = "DEFAULT"
 )
