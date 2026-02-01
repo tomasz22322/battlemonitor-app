@@ -200,7 +200,6 @@ class PlayerMonitorEngine(
         val details = mutableListOf<String>()
         val battleMetricsId = item.battleMetricsId ?: item.resolvedId
         details.add("ID BM: ${battleMetricsId ?: "brak danych"}")
-        details.add("Steam ID: ${item.steamId ?: "brak danych"}")
         val updatedAtForStay = parseUpdatedAtFromDetails(apiDetails) ?: item.updatedAt
         val staySeconds = updatedAtForStay?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(
