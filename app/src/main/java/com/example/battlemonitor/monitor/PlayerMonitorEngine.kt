@@ -56,6 +56,8 @@ class PlayerMonitorEngine(
             val oldCreatedAt = item.createdAt
             val oldUpdatedAt = item.updatedAt
             val oldLastSeenApiAt = item.lastSeenApiAt
+            val oldBattleMetricsId = item.battleMetricsId
+            val oldSteamId = item.steamId
 
             val apiDetails = found?.buildDetails().orEmpty()
 
@@ -82,7 +84,9 @@ class PlayerMonitorEngine(
                 oldServer != item.currentServerName ||
                 oldCreatedAt != item.createdAt ||
                 oldUpdatedAt != item.updatedAt ||
-                oldLastSeenApiAt != item.lastSeenApiAt
+                oldLastSeenApiAt != item.lastSeenApiAt ||
+                oldBattleMetricsId != item.battleMetricsId ||
+                oldSteamId != item.steamId
             ) {
                 changed = true
             }
@@ -107,8 +111,13 @@ class PlayerMonitorEngine(
 
         val newName = found.name ?: item.resolvedName.ifBlank { item.key }
         item.resolvedName = newName
-        if (item.resolvedId.isNullOrBlank() && !found.id.isNullOrBlank()) {
+        if (!found.id.isNullOrBlank()) {
             item.resolvedId = found.id
+            item.battleMetricsId = found.id
+        }
+        val steamId = found.extractSteamId()
+        if (!steamId.isNullOrBlank()) {
+            item.steamId = steamId
         }
         if (serverName != null && serverName != item.currentServerName) {
             item.currentServerName = serverName
@@ -172,9 +181,13 @@ class PlayerMonitorEngine(
         val info = repository.fetchPlayerInfo(resolvedId)
         if (info != null) {
             item.resolvedId = info.id
+            item.battleMetricsId = info.id
             item.createdAt = info.createdAt
             item.updatedAt = info.updatedAt
             item.lastSeenApiAt = info.lastSeenAt
+            if (!info.steamId.isNullOrBlank()) {
+                item.steamId = info.steamId
+            }
         }
         item.infoFetchedAt = now
     }
@@ -185,7 +198,9 @@ class PlayerMonitorEngine(
         apiDetails: List<String>
     ): List<String> {
         val details = mutableListOf<String>()
-        details.add("ID: ${item.resolvedId ?: "brak danych"}")
+        val battleMetricsId = item.battleMetricsId ?: item.resolvedId
+        details.add("ID BM: ${battleMetricsId ?: "brak danych"}")
+        details.add("Steam ID: ${item.steamId ?: "brak danych"}")
         val updatedAtForStay = parseUpdatedAtFromDetails(apiDetails) ?: item.updatedAt
         val staySeconds = updatedAtForStay?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(

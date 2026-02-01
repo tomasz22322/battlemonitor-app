@@ -18,7 +18,8 @@ data class PlayerInfo(
     val id: String,
     val createdAt: Long?,
     val updatedAt: Long?,
-    val lastSeenAt: Long?
+    val lastSeenAt: Long?,
+    val steamId: String?
 )
 
 class PlayerRepository {
@@ -176,7 +177,8 @@ class PlayerRepository {
                 id = data.id ?: playerId,
                 createdAt = parseInstant(attrs.createdAt),
                 updatedAt = parseInstant(attrs.updatedAt),
-                lastSeenAt = parseInstant(attrs.lastSeen)
+                lastSeenAt = parseInstant(attrs.lastSeen),
+                steamId = attrs.steamId
             )
         } catch (e: Exception) {
             Log.e("BM", "fetchPlayerInfo exception: ${e.message}", e)

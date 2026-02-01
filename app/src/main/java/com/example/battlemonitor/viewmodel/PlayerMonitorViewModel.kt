@@ -230,7 +230,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             while (true) {
                 scanServer()
-                delay(3000)
+                delay(1000)
             }
         }
     }

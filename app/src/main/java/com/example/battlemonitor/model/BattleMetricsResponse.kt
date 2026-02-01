@@ -30,6 +30,13 @@ class PlayerAttributes(
     val id: String? = null
 ) {
 
+    private val steamKeys = setOf(
+        "steamid",
+        "steamid64",
+        "steam64",
+        "steam"
+    )
+
     private val preferredDetails = listOf(
         "steamID",
         "steamId",
@@ -64,6 +71,28 @@ class PlayerAttributes(
     )
 
     val name: String? = raw["name"]?.toString()?.takeIf { it.isNotBlank() }
+
+    fun extractSteamId(): String? {
+        raw.entries.firstOrNull { (key, value) ->
+            key.lowercase() in steamKeys && value != null
+        }?.let { (_, value) ->
+            return formatIdentifier(value)
+        }
+
+        val identifiers = raw["identifiers"]
+        if (identifiers is List<*>) {
+            identifiers.forEach { entry ->
+                val map = entry as? Map<*, *> ?: return@forEach
+                val type = map["type"]?.toString()?.lowercase()
+                val identifier = map["identifier"] ?: map["id"]
+                if (type?.contains("steam") == true && identifier != null) {
+                    return formatIdentifier(identifier)
+                }
+            }
+        }
+
+        return null
+    }
 
     fun bestSeconds(): Long? {
         val timeKeys = listOf(
@@ -129,6 +158,14 @@ class PlayerAttributes(
                 "${entry.key}:${entry.value}"
             }
             is List<*> -> value.joinToString(", ") { it.toString() }
+            else -> value.toString()
+        }?.takeIf { it.isNotBlank() }
+    }
+
+    private fun formatIdentifier(value: Any): String? {
+        return when (value) {
+            is Number -> value.toString()
+            is String -> value.takeIf { it.isNotBlank() }
             else -> value.toString()
         }?.takeIf { it.isNotBlank() }
     }

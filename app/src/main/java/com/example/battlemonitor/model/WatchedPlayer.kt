@@ -6,6 +6,8 @@ data class WatchedPlayer(
     var resolvedName: String = key,
     var originalName: String? = null,
     var resolvedId: String? = null,
+    var battleMetricsId: String? = null,
+    var steamId: String? = null,
 
     var online: Boolean = false,
 
