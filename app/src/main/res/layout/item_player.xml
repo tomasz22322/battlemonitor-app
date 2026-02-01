@@ -51,8 +51,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:maxLines="1"
-                android:text="ID: 123 • 2h 10m"
+                android:maxLines="2"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
 
