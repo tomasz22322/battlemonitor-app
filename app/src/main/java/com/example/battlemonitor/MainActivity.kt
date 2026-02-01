@@ -57,6 +57,16 @@ class MainActivity : AppCompatActivity() {
                     vm.toggleGroupNotifications(group)
                 }
             },
+            onDeleteGroup = { group ->
+                AlertDialog.Builder(this)
+                    .setTitle("Usuń grupę")
+                    .setMessage("Czy na pewno chcesz usunąć grupę i jej członków?")
+                    .setNegativeButton("Anuluj", null)
+                    .setPositiveButton("Usuń") { _, _ ->
+                        vm.deleteGroup(group)
+                    }
+                    .show()
+            },
             onToggleNotifications = { player ->
                 if (ensureNotificationPermission()) {
                     vm.toggleNotifications(player)
@@ -114,7 +124,7 @@ class MainActivity : AppCompatActivity() {
 
             showGroupDialog(
                 title = "Grupa gracza",
-                defaultValue = "DEFAULT",
+                defaultValue = "",
                 onChosen = { group ->
                     vm.addPlayer(key, group)
                     et.setText("")
@@ -178,7 +188,7 @@ class MainActivity : AppCompatActivity() {
             .setView(input)
             .setNegativeButton("Anuluj", null)
             .setPositiveButton("OK") { _, _ ->
-                val group = input.text.toString().trim().ifBlank { "DEFAULT" }
+                val group = input.text.toString().trim()
                 onChosen(group)
             }
             .show()

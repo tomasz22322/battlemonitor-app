@@ -141,10 +141,13 @@ class PlayerMonitorService : Service() {
         groupNotifications: Map<String, Boolean>
     ) {
         val grouped = players.groupBy { groupKey(it.group) }
-        val activeKeys = grouped.keys
+        val activeKeys = grouped.keys.filter { it.isNotBlank() }.toSet()
         groupOfflineState.keys.retainAll(activeKeys)
 
         grouped.forEach { (key, members) ->
+            if (key.isBlank()) {
+                return@forEach
+            }
             val enabled = groupNotifications[key] ?: true
             if (!enabled) {
                 groupOfflineState[key] = false
@@ -183,7 +186,7 @@ class PlayerMonitorService : Service() {
     }
 
     private fun groupKey(name: String?): String {
-        val normalized = name?.trim().orEmpty().ifBlank { DEFAULT_GROUP }
+        val normalized = name?.trim().orEmpty()
         return normalized.lowercase()
     }
 }

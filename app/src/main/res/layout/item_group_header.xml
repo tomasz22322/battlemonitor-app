@@ -3,8 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="6dp"
-    android:layout_marginTop="10dp"
-    android:layout_marginBottom="2dp"
+    android:layout_marginTop="16dp"
+    android:layout_marginBottom="6dp"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingHorizontal="12dp"
@@ -27,5 +27,15 @@
         android:gravity="center"
         android:text="🔔"
         android:textColor="@color/accent"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/btnGroupDelete"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="6dp"
+        android:gravity="center"
+        android:text="✕"
+        android:textColor="@color/danger"
         android:textSize="12sp" />
 </LinearLayout>

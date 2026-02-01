@@ -20,6 +20,11 @@ class PlayerStorage(context: Context) {
         prefs.edit().putString("group_notifications_json", json).apply()
     }
 
+    fun saveGroupDisplayNames(names: Map<String, String>) {
+        val json = gson.toJson(names)
+        prefs.edit().putString("group_display_names_json", json).apply()
+    }
+
     fun load(): List<WatchedPlayer> {
         val json = prefs.getString("players_json", null) ?: return emptyList()
         return try {
@@ -51,6 +56,17 @@ class PlayerStorage(context: Context) {
         return try {
             val type = object : TypeToken<Map<String, Boolean>>() {}.type
             val loaded = gson.fromJson<Map<String, Boolean>>(json, type).orEmpty()
+            loaded.toMutableMap()
+        } catch (_: Exception) {
+            mutableMapOf()
+        }
+    }
+
+    fun loadGroupDisplayNames(): MutableMap<String, String> {
+        val json = prefs.getString("group_display_names_json", null) ?: return mutableMapOf()
+        return try {
+            val type = object : TypeToken<Map<String, String>>() {}.type
+            val loaded = gson.fromJson<Map<String, String>>(json, type).orEmpty()
             loaded.toMutableMap()
         } catch (_: Exception) {
             mutableMapOf()

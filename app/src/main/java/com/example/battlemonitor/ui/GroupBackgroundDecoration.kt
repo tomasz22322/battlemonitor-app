@@ -35,7 +35,7 @@ class GroupBackgroundDecoration(context: Context) : RecyclerView.ItemDecoration(
                 if (start != -1) {
                     groupRanges.add(start to index - 1)
                 }
-                start = index
+                start = if (item.isUngrouped) -1 else index
             }
         }
         if (start != -1) {
