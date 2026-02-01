@@ -24,6 +24,7 @@ class PlayerAdapter(
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<PlayerListItem>()
+    private val expandedKeys = mutableSetOf<String>()
 
     fun submitList(newItems: List<PlayerListItem>) {
         items.clear()
@@ -117,7 +118,7 @@ class PlayerAdapter(
         }
     }
 
-    class PlayerVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    inner class PlayerVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
         private val tvName: TextView = itemView.findViewById(R.id.tvName)
         private val tvMeta: TextView = itemView.findViewById(R.id.tvMeta)
@@ -134,25 +135,28 @@ class PlayerAdapter(
         ) {
             tvName.text = buildDisplayName(item)
 
+            val stayEntry = item.details
+                ?.firstOrNull { it.trim().startsWith("Czas przebywania", ignoreCase = true) }
             val metaText = if (item.online) {
-                val metaParts = LinkedHashSet<String>()
-                metaParts.add("Online")
-                val serverName = item.currentServerName?.takeIf { it.isNotBlank() }
-                if (serverName != null) {
-                    metaParts.add(serverName)
+                val metaParts = mutableListOf("Online")
+                if (stayEntry != null) {
+                    metaParts.add(stayEntry)
                 }
-                metaParts.joinToString(separator = "\n")
+                metaParts.joinToString(separator = " • ")
             } else {
                 "Offline"
             }
             tvMeta.text = metaText
             tvMeta.visibility = if (metaText.isBlank()) View.GONE else View.VISIBLE
 
-            val detailsText = if (item.online) {
-                item.details.orEmpty().joinToString(separator = "\n")
-            } else {
-                ""
-            }
+            val detailsText = item.details
+                .orEmpty()
+                .filterNot { entry ->
+                    stayEntry != null && entry.trim().equals(stayEntry.trim(), ignoreCase = true)
+                }
+                .joinToString(separator = "\n")
+                .takeIf { expandedKeys.contains(item.key) }
+                .orEmpty()
             tvDetails.text = detailsText
             tvDetails.visibility = if (detailsText.isBlank()) View.GONE else View.VISIBLE
 
@@ -173,6 +177,18 @@ class PlayerAdapter(
             itemView.setOnLongClickListener {
                 onStartDrag(this)
                 true
+            }
+            itemView.setOnClickListener {
+                val key = item.key
+                if (expandedKeys.contains(key)) {
+                    expandedKeys.remove(key)
+                } else {
+                    expandedKeys.add(key)
+                }
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    notifyItemChanged(position)
+                }
             }
         }
 
