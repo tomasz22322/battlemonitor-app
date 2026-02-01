@@ -65,15 +65,10 @@ class PlayerMonitorEngine(
 
             refreshPlayerInfoIfNeeded(item, now)
 
-            val sessionSeconds = if (item.online && item.sessionStartAt != null) {
-                ((now - item.sessionStartAt!!) / 1000L).coerceAtLeast(0)
-            } else {
-                null
-            }
             item.details = mergeDetails(
                 buildDerivedDetails(
                     item = item,
-                    sessionSeconds = sessionSeconds
+                    now = now
                 )
             )
 
@@ -183,17 +178,16 @@ class PlayerMonitorEngine(
 
     private fun buildDerivedDetails(
         item: WatchedPlayer,
-        sessionSeconds: Long?
+        now: Long
     ): List<String> {
         val details = mutableListOf<String>()
 
         details.add("ID: ${item.resolvedId ?: "brak danych"}")
-        details.add("Created at: ${formatTimestamp(item.createdAt)}")
-        details.add("Updated at: ${formatTimestamp(item.updatedAt)}")
         details.add("Last seen: ${formatTimestamp(item.lastSeenApiAt)}")
+        val serverSeconds = item.updatedAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(
             "Czas na serwerze: ${
-                if (item.online && sessionSeconds != null) formatDuration(sessionSeconds)
+                if (serverSeconds != null) formatDuration(serverSeconds)
                 else "brak danych"
             }"
         )
