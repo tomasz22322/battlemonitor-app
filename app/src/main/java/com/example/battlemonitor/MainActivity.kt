@@ -92,11 +92,7 @@ class MainActivity : AppCompatActivity() {
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder
             ): Int {
-                return if (viewHolder.itemViewType == 0) {
-                    0
-                } else {
-                    makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
-                }
+                return makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
             }
 
             override fun onMove(

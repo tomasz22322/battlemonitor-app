@@ -25,6 +25,11 @@ class PlayerStorage(context: Context) {
         prefs.edit().putString("group_display_names_json", json).apply()
     }
 
+    fun saveGroupOrder(order: List<String>) {
+        val json = gson.toJson(order)
+        prefs.edit().putString("group_order_json", json).apply()
+    }
+
     fun load(): List<WatchedPlayer> {
         val json = prefs.getString("players_json", null) ?: return emptyList()
         return try {
@@ -70,6 +75,17 @@ class PlayerStorage(context: Context) {
             loaded.toMutableMap()
         } catch (_: Exception) {
             mutableMapOf()
+        }
+    }
+
+    fun loadGroupOrder(): MutableList<String> {
+        val json = prefs.getString("group_order_json", null) ?: return mutableListOf()
+        return try {
+            val type = object : TypeToken<List<String>>() {}.type
+            val loaded = gson.fromJson<List<String>>(json, type).orEmpty()
+            loaded.toMutableList()
+        } catch (_: Exception) {
+            mutableListOf()
         }
     }
 }

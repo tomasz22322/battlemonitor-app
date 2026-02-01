@@ -15,7 +15,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         private const val DEFAULT_GROUP = "DEFAULT"
         private const val NO_GROUP = ""
-        private const val UNGROUPED_LABEL = "Bez grupy"
+        private const val UNGROUPED_LABEL = ""
     }
 
     private val repository = PlayerRepository()
@@ -25,6 +25,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val watchedPlayers = mutableListOf<WatchedPlayer>()
     private val groupNotifications = storage.loadGroupNotifications().toMutableMap()
     private val groupDisplayNames = storage.loadGroupDisplayNames().toMutableMap()
+    private val groupOrder = storage.loadGroupOrder().toMutableList()
 
     private val _items = MutableLiveData<List<PlayerListItem>>(emptyList())
     val items: LiveData<List<PlayerListItem>> = _items
@@ -116,6 +117,22 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
         storage.saveGroupDisplayNames(groupDisplayNames)
 
+        if (oldKey.isNotBlank()) {
+            val index = groupOrder.indexOf(oldKey)
+            if (index != -1) {
+                if (newKey.isBlank()) {
+                    groupOrder.removeAt(index)
+                } else {
+                    val existingIndex = groupOrder.indexOf(newKey)
+                    if (existingIndex != -1 && existingIndex != index) {
+                        groupOrder.removeAt(existingIndex)
+                    }
+                    groupOrder[index] = newKey
+                }
+                storage.saveGroupOrder(groupOrder)
+            }
+        }
+
         val keysToUpdate = if (oldKey == newKey) {
             setOf(oldKey)
         } else {
@@ -153,6 +170,9 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
         groupNotifications.remove(key)
         groupDisplayNames.remove(key)
+        if (groupOrder.remove(key)) {
+            storage.saveGroupOrder(groupOrder)
+        }
         storage.saveGroupNotifications(groupNotifications)
         storage.saveGroupDisplayNames(groupDisplayNames)
 
@@ -179,18 +199,22 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun reorderPlayers(items: List<PlayerListItem>) {
         var currentGroup = NO_GROUP
-        val groupOrder = mutableMapOf<String, Int>()
+        val groupIndex = mutableMapOf<String, Int>()
         var changed = false
+        val newGroupOrder = mutableListOf<String>()
 
         items.forEach { item ->
             when (item) {
                 is PlayerListItem.Header -> {
                     currentGroup = resolveGroupName(item.groupName)
+                    if (item.groupKey.isNotBlank()) {
+                        newGroupOrder.add(item.groupKey)
+                    }
                 }
 
                 is PlayerListItem.PlayerRow -> {
                     val key = groupKey(currentGroup)
-                    val nextIndex = groupOrder[key] ?: 0
+                    val nextIndex = groupIndex[key] ?: 0
                     if (item.player.group != currentGroup) {
                         item.player.group = currentGroup
                         changed = true
@@ -199,13 +223,23 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
                         item.player.sortOrder = nextIndex
                         changed = true
                     }
-                    groupOrder[key] = nextIndex + 1
+                    groupIndex[key] = nextIndex + 1
                 }
             }
         }
 
+        var shouldPublish = changed
+        if (newGroupOrder.isNotEmpty() && newGroupOrder != this.groupOrder) {
+            this.groupOrder.clear()
+            this.groupOrder.addAll(newGroupOrder.distinct())
+            storage.saveGroupOrder(this.groupOrder)
+            shouldPublish = true
+        }
+
         if (changed) {
             storage.save(watchedPlayers)
+        }
+        if (shouldPublish) {
             publish()
         }
     }
@@ -330,9 +364,18 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun sortGroupKeys(displayNames: Map<String, String>): List<String> {
-        return displayNames.keys.sortedWith(
-            compareBy<String> { displayNames[it]?.lowercase() ?: it }
-        )
+        val activeKeys = displayNames.keys.filter { it.isNotBlank() }
+        val ordered = groupOrder.filter { it in activeKeys }
+        val remaining = activeKeys
+            .filterNot { it in ordered }
+            .sortedWith(compareBy<String> { displayNames[it]?.lowercase() ?: it })
+        val result = ordered + remaining
+        if (result != groupOrder) {
+            groupOrder.clear()
+            groupOrder.addAll(result)
+            storage.saveGroupOrder(groupOrder)
+        }
+        return result
     }
 
     private fun syncGroupNotifications() {

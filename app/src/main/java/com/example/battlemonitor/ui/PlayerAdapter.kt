@@ -63,7 +63,8 @@ class PlayerAdapter(
                 item.isUngrouped,
                 onRenameGroup,
                 onToggleGroupNotifications,
-                onDeleteGroup
+                onDeleteGroup,
+                onStartDrag
             )
             is PlayerListItem.PlayerRow -> (holder as PlayerVH).bind(
                 item.player,
@@ -76,8 +77,57 @@ class PlayerAdapter(
 
     fun onItemMove(fromPosition: Int, toPosition: Int): Boolean {
         if (fromPosition == toPosition) return false
-        val fromItem = items.getOrNull(fromPosition) as? PlayerListItem.PlayerRow ?: return false
+        val fromItem = items.getOrNull(fromPosition) ?: return false
         val targetItem = items.getOrNull(toPosition) ?: return false
+        return when (fromItem) {
+            is PlayerListItem.Header -> moveGroupBlock(fromPosition, toPosition, targetItem)
+            is PlayerListItem.PlayerRow -> movePlayerRow(fromPosition, toPosition, targetItem)
+        }
+    }
+
+    fun onDragFinished() {
+        onReorder(items.toList())
+    }
+
+    private fun moveGroupBlock(
+        fromPosition: Int,
+        toPosition: Int,
+        targetItem: PlayerListItem
+    ): Boolean {
+        val fromRange = findGroupRange(fromPosition)
+        if (toPosition in fromRange) return false
+        val targetHeaderPos = when (targetItem) {
+            is PlayerListItem.Header -> toPosition
+            is PlayerListItem.PlayerRow -> findHeaderPositionFor(toPosition) ?: return false
+        }
+        if (targetHeaderPos in fromRange) return false
+
+        val targetRange = findGroupRange(targetHeaderPos)
+        val movingDown = targetHeaderPos > fromRange.first
+        val rawInsertIndex = when (targetItem) {
+            is PlayerListItem.Header -> targetHeaderPos
+            is PlayerListItem.PlayerRow ->
+                if (movingDown) targetRange.last + 1 else targetRange.first
+        }
+
+        val block = items.subList(fromRange.first, fromRange.last + 1).toList()
+        repeat(block.size) { items.removeAt(fromRange.first) }
+        var insertIndex = rawInsertIndex
+        if (rawInsertIndex > fromRange.first) {
+            insertIndex -= block.size
+        }
+        insertIndex = insertIndex.coerceIn(0, items.size)
+        items.addAll(insertIndex, block)
+        notifyDataSetChanged()
+        return true
+    }
+
+    private fun movePlayerRow(
+        fromPosition: Int,
+        toPosition: Int,
+        targetItem: PlayerListItem
+    ): Boolean {
+        val fromItem = items.getOrNull(fromPosition) as? PlayerListItem.PlayerRow ?: return false
         val insertionIndex = when (targetItem) {
             is PlayerListItem.Header -> (toPosition + 1).coerceAtMost(items.size)
             is PlayerListItem.PlayerRow -> toPosition
@@ -90,8 +140,28 @@ class PlayerAdapter(
         return true
     }
 
-    fun onDragFinished() {
-        onReorder(items.toList())
+    private fun findGroupRange(headerPosition: Int): IntRange {
+        var end = headerPosition
+        var index = headerPosition + 1
+        while (index < items.size) {
+            if (items[index] is PlayerListItem.Header) {
+                break
+            }
+            end = index
+            index++
+        }
+        return headerPosition..end
+    }
+
+    private fun findHeaderPositionFor(position: Int): Int? {
+        var index = position
+        while (index >= 0) {
+            if (items[index] is PlayerListItem.Header) {
+                return index
+            }
+            index--
+        }
+        return null
     }
 
     class HeaderVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -106,16 +176,19 @@ class PlayerAdapter(
             isUngrouped: Boolean,
             onRenameGroup: (String) -> Unit,
             onToggleGroupNotifications: (String) -> Unit,
-            onDeleteGroup: (String) -> Unit
+            onDeleteGroup: (String) -> Unit,
+            onStartDrag: (RecyclerView.ViewHolder) -> Unit
         ) {
             tv.text = title
             if (isUngrouped) {
+                tv.visibility = View.GONE
+                tv.setOnClickListener(null)
                 btnNotify.visibility = View.GONE
                 btnDelete.visibility = View.GONE
                 btnNotify.setOnClickListener(null)
                 btnDelete.setOnClickListener(null)
-                itemView.setOnLongClickListener(null)
             } else {
+                tv.visibility = View.VISIBLE
                 btnNotify.visibility = View.VISIBLE
                 btnDelete.visibility = View.VISIBLE
                 btnNotify.text = if (notificationsEnabled) "🔔" else "🔕"
@@ -125,10 +198,11 @@ class PlayerAdapter(
                 )
                 btnNotify.setOnClickListener { onToggleGroupNotifications(groupName) }
                 btnDelete.setOnClickListener { onDeleteGroup(groupName) }
-                itemView.setOnLongClickListener {
-                    onRenameGroup(groupName)
-                    true
-                }
+                tv.setOnClickListener { onRenameGroup(groupName) }
+            }
+            itemView.setOnLongClickListener {
+                onStartDrag(this)
+                true
             }
         }
     }
