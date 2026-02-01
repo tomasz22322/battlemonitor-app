@@ -34,6 +34,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         watchedPlayers.addAll(storage.load())
+        ensureSortOrder()
         createNotificationChannel()
         publish()
         startMonitoring()
@@ -43,10 +44,12 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         val trimmed = key.trim()
         if (trimmed.isBlank()) return
 
+        val resolvedGroup = resolveGroupName(group)
         watchedPlayers.add(
             WatchedPlayer(
                 key = trimmed,
-                group = resolveGroupName(group)
+                group = resolvedGroup,
+                sortOrder = nextSortOrder(resolvedGroup)
             )
         )
         storage.save(watchedPlayers)
@@ -63,6 +66,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         val resolvedGroup = resolveGroupName(newGroup)
         if (player.group != resolvedGroup) {
             player.group = resolvedGroup
+            player.sortOrder = nextSortOrder(resolvedGroup)
             storage.save(watchedPlayers)
             publish()
         }
@@ -105,6 +109,39 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         publish()
     }
 
+    fun reorderPlayers(items: List<PlayerListItem>) {
+        var currentGroup = DEFAULT_GROUP
+        val groupOrder = mutableMapOf<String, Int>()
+        var changed = false
+
+        items.forEach { item ->
+            when (item) {
+                is PlayerListItem.Header -> {
+                    currentGroup = resolveGroupName(item.title)
+                }
+
+                is PlayerListItem.PlayerRow -> {
+                    val key = groupKey(currentGroup)
+                    val nextIndex = groupOrder[key] ?: 0
+                    if (item.player.group != currentGroup) {
+                        item.player.group = currentGroup
+                        changed = true
+                    }
+                    if (item.player.sortOrder != nextIndex) {
+                        item.player.sortOrder = nextIndex
+                        changed = true
+                    }
+                    groupOrder[key] = nextIndex + 1
+                }
+            }
+        }
+
+        if (changed) {
+            storage.save(watchedPlayers)
+            publish()
+        }
+    }
+
     fun getGroups(): List<String> {
         val displayNames = buildGroupDisplayNames(watchedPlayers)
         val sortedKeys = sortGroupKeys(displayNames)
@@ -128,7 +165,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             out.add(PlayerListItem.Header(displayName))
 
             val sortedPlayers = list.sortedWith(
-                compareByDescending<WatchedPlayer> { it.online }
+                compareBy<WatchedPlayer> { it.sortOrder }
                     .thenBy { (it.resolvedName.ifBlank { it.key }).lowercase() }
             )
 
@@ -150,6 +187,34 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         val key = groupKey(normalized)
         val existing = watchedPlayers.firstOrNull { groupKey(it.group) == key }?.group
         return normalizeGroupName(existing ?: normalized)
+    }
+
+    private fun nextSortOrder(group: String): Int {
+        val key = groupKey(group)
+        val max = watchedPlayers
+            .filter { groupKey(it.group) == key }
+            .maxOfOrNull { it.sortOrder } ?: -1
+        return max + 1
+    }
+
+    private fun ensureSortOrder() {
+        val grouped = watchedPlayers.groupBy { groupKey(it.group) }
+        var changed = false
+        grouped.forEach { (_, players) ->
+            val hasDuplicates = players.groupBy { it.sortOrder }.any { it.value.size > 1 }
+            if (hasDuplicates) {
+                players.sortedBy { (it.resolvedName.ifBlank { it.key }).lowercase() }
+                    .forEachIndexed { index, player ->
+                        if (player.sortOrder != index) {
+                            player.sortOrder = index
+                            changed = true
+                        }
+                    }
+            }
+        }
+        if (changed) {
+            storage.save(watchedPlayers)
+        }
     }
 
     private fun buildGroupDisplayNames(players: List<WatchedPlayer>): Map<String, String> {
