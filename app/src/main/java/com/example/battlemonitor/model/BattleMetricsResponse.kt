@@ -17,17 +17,23 @@ data class PlayerAttributes(
 
     // Najczęściej spotykane nazwy pól z czasem (sekundy)
     @Json(name = "onlineTime")
-    val onlineTime: Int? = null,
+    val onlineTime: Long? = null,
 
     @Json(name = "timePlayed")
-    val timePlayed: Int? = null,
+    val timePlayed: Long? = null,
 
     @Json(name = "sessionTime")
-    val sessionTime: Int? = null
+    val sessionTime: Long? = null
 ) {
-    fun bestSeconds(): Int? {
-        // weź pierwsze sensowne
+    fun bestSeconds(): Long? {
+        // weź pierwsze sensowne, normalizując wartości w razie ms
         return listOf(sessionTime, onlineTime, timePlayed)
             .firstOrNull { it != null && it > 0 }
+            ?.let { normalizeSeconds(it) }
+    }
+
+    private fun normalizeSeconds(value: Long): Long {
+        // Jeśli API zwróci ms zamiast s, zbij do sekund.
+        return if (value > 1_000_000_000L) value / 1000L else value
     }
 }
