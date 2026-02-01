@@ -84,7 +84,6 @@ class MainActivity : AppCompatActivity() {
                 viewHolder: RecyclerView.ViewHolder,
                 target: RecyclerView.ViewHolder
             ): Boolean {
-                if (target.itemViewType == 0) return false
                 return adapter.onItemMove(viewHolder.bindingAdapterPosition, target.bindingAdapterPosition)
             }
 
