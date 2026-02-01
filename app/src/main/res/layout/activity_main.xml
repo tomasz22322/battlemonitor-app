@@ -4,40 +4,56 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:fitsSystemWindows="true"
-    android:paddingStart="12dp"
-    android:paddingTop="8dp"
-    android:paddingEnd="12dp"
-    android:paddingBottom="8dp">
+    android:background="@drawable/bg_screen"
+    android:paddingStart="16dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="12dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Battle Monitor"
+        android:textColor="@color/text_primary"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="10dp" />
 
     <!-- Pasek dodawania (nick/id + grupa + dodaj) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="2dp">
+        android:orientation="horizontal">
 
         <EditText
             android:id="@+id/etPlayerKey"
             android:layout_width="0dp"
             android:layout_height="36dp"
             android:layout_weight="1"
+            android:background="@drawable/bg_input"
             android:hint="Nick / ID"
             android:singleLine="true"
             android:paddingHorizontal="10dp"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_hint"
             android:textSize="14sp" />
 
         <Spinner
             android:id="@+id/spGroup"
             android:layout_width="120dp"
             android:layout_height="36dp"
-            android:layout_marginStart="6dp" />
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_input" />
 
         <Button
             android:id="@+id/btnAdd"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_primary_button"
             android:text="Dodaj"
+            android:textColor="@color/text_on_accent"
             android:textSize="13sp" />
     </LinearLayout>
 
@@ -46,7 +62,7 @@
         android:id="@+id/rvPlayers"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="14dp"
         android:layout_weight="1"
         android:clipToPadding="false"
         android:paddingBottom="8dp" />
