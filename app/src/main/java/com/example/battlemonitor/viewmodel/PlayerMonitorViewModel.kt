@@ -3,9 +3,11 @@ package com.example.battlemonitor.viewmodel
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.*
 import com.example.battlemonitor.data.PlayerRepository
 import com.example.battlemonitor.data.PlayerStorage
@@ -234,7 +236,9 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             }
 
             if (wasOnline != item.online && item.notificationsEnabled != false) {
-                sendStatusNotification(item, item.online)
+                if (canPostNotifications()) {
+                    sendStatusNotification(item, item.online)
+                }
             }
         }
 
@@ -282,5 +286,15 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             .build()
 
         notificationManager.notify(displayName.hashCode(), notification)
+    }
+
+    private fun canPostNotifications(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return true
+        }
+        return ContextCompat.checkSelfPermission(
+            getApplication(),
+            android.Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
     }
 }
