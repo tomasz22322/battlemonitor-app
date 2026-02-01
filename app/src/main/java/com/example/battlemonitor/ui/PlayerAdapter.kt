@@ -24,7 +24,6 @@ class PlayerAdapter(
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val items = mutableListOf<PlayerListItem>()
-    private val expandedKeys = mutableSetOf<String>()
 
     fun submitList(newItems: List<PlayerListItem>) {
         items.clear()
@@ -54,28 +53,12 @@ class PlayerAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = items[position]) {
             is PlayerListItem.Header -> (holder as HeaderVH).bind(item.title, onRenameGroup)
-            is PlayerListItem.PlayerRow -> {
-                val playerHolder = holder as PlayerVH
-                val isExpanded = expandedKeys.contains(item.player.key)
-                playerHolder.bind(
-                    item.player,
-                    isExpanded,
-                    onRemove,
-                    onToggleNotifications,
-                    onStartDrag
-                ) {
-                    val key = item.player.key
-                    if (expandedKeys.contains(key)) {
-                        expandedKeys.remove(key)
-                    } else {
-                        expandedKeys.add(key)
-                    }
-                    val adapterPosition = playerHolder.bindingAdapterPosition
-                    if (adapterPosition != RecyclerView.NO_POSITION) {
-                        notifyItemChanged(adapterPosition)
-                    }
-                }
-            }
+            is PlayerListItem.PlayerRow -> (holder as PlayerVH).bind(
+                item.player,
+                onRemove,
+                onToggleNotifications,
+                onStartDrag
+            )
         }
     }
 
@@ -145,28 +128,27 @@ class PlayerAdapter(
 
         fun bind(
             item: WatchedPlayer,
-            isExpanded: Boolean,
             onRemove: (WatchedPlayer) -> Unit,
             onToggleNotifications: (WatchedPlayer) -> Unit,
-            onStartDrag: (RecyclerView.ViewHolder) -> Unit,
-            onToggleExpand: () -> Unit
+            onStartDrag: (RecyclerView.ViewHolder) -> Unit
         ) {
             tvName.text = buildDisplayName(item)
 
             val metaText = if (item.online) {
-                val timeValue = item.playTime.takeIf { it.isNotBlank() }
-                if (timeValue != null) {
-                    "Online · $timeValue"
-                } else {
-                    "Online"
+                val metaParts = LinkedHashSet<String>()
+                metaParts.add("Online")
+                val serverName = item.currentServerName?.takeIf { it.isNotBlank() }
+                if (serverName != null) {
+                    metaParts.add(serverName)
                 }
+                metaParts.joinToString(separator = "\n")
             } else {
                 "Offline"
             }
             tvMeta.text = metaText
             tvMeta.visibility = if (metaText.isBlank()) View.GONE else View.VISIBLE
 
-            val detailsText = if (isExpanded) {
+            val detailsText = if (item.online) {
                 item.details.orEmpty().joinToString(separator = "\n")
             } else {
                 ""
@@ -188,7 +170,6 @@ class PlayerAdapter(
             btnNotify.setOnClickListener { onToggleNotifications(item) }
 
             btnRemove.setOnClickListener { onRemove(item) }
-            itemView.setOnClickListener { onToggleExpand() }
             itemView.setOnLongClickListener {
                 onStartDrag(this)
                 true
