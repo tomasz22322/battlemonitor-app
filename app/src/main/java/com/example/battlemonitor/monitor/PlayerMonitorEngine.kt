@@ -57,6 +57,8 @@ class PlayerMonitorEngine(
             val oldUpdatedAt = item.updatedAt
             val oldLastSeenApiAt = item.lastSeenApiAt
 
+            val apiDetails = found?.buildDetails().orEmpty()
+
             if (found != null) {
                 updateOnlinePlayer(item, found, serverName, now, wasOnline, sessionStart)
             } else {
@@ -68,7 +70,8 @@ class PlayerMonitorEngine(
             item.details = mergeDetails(
                 buildDerivedDetails(
                     item = item,
-                    now = now
+                    now = now,
+                    apiDetails = apiDetails
                 )
             )
 
@@ -178,20 +181,24 @@ class PlayerMonitorEngine(
 
     private fun buildDerivedDetails(
         item: WatchedPlayer,
-        now: Long
+        now: Long,
+        apiDetails: List<String>
     ): List<String> {
         val details = mutableListOf<String>()
 
         details.add("ID: ${item.resolvedId ?: "brak danych"}")
         details.add("Utworzono: ${formatTimestamp(item.createdAt)}")
         details.add("Zaktualizowano: ${formatTimestamp(item.updatedAt)}")
+        details.add("Ostatnio widziany: ${formatTimestamp(item.lastSeenApiAt)}")
         val serverSeconds = item.updatedAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(
-            "Czas na serwerze: ${
-                if (serverSeconds != null) formatDuration(serverSeconds)
+            "Gra na serwerze od: ${
+                if (serverSeconds != null) formatServerDuration(serverSeconds)
                 else "brak danych"
             }"
         )
+
+        details.addAll(apiDetails)
 
         return details
     }
@@ -219,6 +226,35 @@ class PlayerMonitorEngine(
             days > 0 -> "${days}d ${hours % 24}h"
             hours > 0 -> "${hours}h ${minutes % 60}m"
             else -> "${minutes}m"
+        }
+    }
+
+    private fun formatServerDuration(seconds: Long): String {
+        val safeSeconds = seconds.coerceAtLeast(0)
+        val minutes = safeSeconds / 60
+        val hours = minutes / 60
+        val days = hours / 24
+        val years = days / 365
+        val remainingDays = days % 365
+
+        return when {
+            years > 0 -> buildString {
+                append("$years ${formatYearsLabel(years)}")
+                if (remainingDays > 0) {
+                    append(" ${remainingDays}d")
+                }
+            }
+            else -> formatDuration(seconds)
+        }
+    }
+
+    private fun formatYearsLabel(years: Long): String {
+        val mod10 = years % 10
+        val mod100 = years % 100
+        return when {
+            years == 1L -> "rok"
+            mod10 in 2..4 && mod100 !in 12..14 -> "lata"
+            else -> "lat"
         }
     }
 
