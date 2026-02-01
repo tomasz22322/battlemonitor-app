@@ -25,6 +25,12 @@ class PlayerStorage(context: Context) {
                 if (updated.details == null) {
                     updated = updated.copy(details = emptyList())
                 }
+                if (updated.joinHourCounts.isNullOrEmpty() || updated.joinHourCounts?.size != 24) {
+                    updated = updated.copy(joinHourCounts = List(24) { 0 })
+                }
+                if (updated.leaveHourCounts.isNullOrEmpty() || updated.leaveHourCounts?.size != 24) {
+                    updated = updated.copy(leaveHourCounts = List(24) { 0 })
+                }
                 if (updated.notificationsEnabled == null) {
                     updated = updated.copy(notificationsEnabled = true)
                 }

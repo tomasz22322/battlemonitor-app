@@ -15,6 +15,9 @@ import com.example.battlemonitor.model.WatchedPlayer
 import com.example.battlemonitor.ui.PlayerListItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -245,6 +248,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun scanServer() {
         val onlineMap = repository.fetchOnlinePlayers()
+        val now = System.currentTimeMillis()
 
         var changed = false
 
@@ -279,17 +283,56 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
                     if (k.all { it.isDigit() }) item.resolvedId = k
                 }
 
-                val secondsToShow = found.bestSeconds()
-                item.playTime = when {
-                    secondsToShow == null || secondsToShow <= 0 -> "??"
-                    else -> formatTime(secondsToShow)
+                item.lastSeenAt = now
+                if (!wasOnline) {
+                    item.sessionStartAt = now
+                    item.joinHourCounts = incrementHourCount(item.joinHourCounts, now)
                 }
 
-                item.details = found.buildDetails()
+                val apiSeconds = found.bestSeconds()
+                if (item.sessionStartAt == null) {
+                    item.sessionStartAt = if (apiSeconds != null && apiSeconds > 0) {
+                        now - (apiSeconds * 1000L)
+                    } else {
+                        now
+                    }
+                }
+
+                val sessionSeconds = item.sessionStartAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
+                val secondsToShow = sessionSeconds?.takeIf { it > 0 } ?: apiSeconds
+                item.playTime = when {
+                    secondsToShow == null || secondsToShow <= 0 -> "??"
+                    else -> formatDuration(secondsToShow)
+                }
+
+                val derivedDetails = buildDerivedDetails(
+                    item = item,
+                    now = now,
+                    sessionSeconds = sessionSeconds
+                )
+                item.details = (derivedDetails + found.buildDetails()).filter { it.isNotBlank() }
             } else {
+                if (wasOnline) {
+                    val sessionSeconds =
+                        item.sessionStartAt?.let { ((now - it) / 1000L).coerceAtLeast(0) }
+                    if (sessionSeconds != null && sessionSeconds > 0) {
+                        item.lastSessionSeconds = sessionSeconds
+                        val total = (item.totalSessionSeconds ?: 0L) + sessionSeconds
+                        item.totalSessionSeconds = total
+                    }
+                    item.sessionStartAt = null
+                    item.lastOfflineAt = now
+                    item.leaveHourCounts = incrementHourCount(item.leaveHourCounts, now)
+                }
                 item.online = false
                 item.playTime = ""
-                item.details = emptyList()
+
+                val derivedDetails = buildDerivedDetails(
+                    item = item,
+                    now = now,
+                    sessionSeconds = null
+                )
+                item.details = derivedDetails
             }
 
             if (wasOnline != item.online ||
@@ -313,10 +356,93 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun formatTime(seconds: Long): String {
-        val hours = seconds / 3600
-        val minutes = (seconds % 3600) / 60
-        return "${hours}h ${minutes}m"
+    private fun buildDerivedDetails(
+        item: WatchedPlayer,
+        now: Long,
+        sessionSeconds: Long?
+    ): List<String> {
+        val details = mutableListOf<String>()
+
+        if (item.online && sessionSeconds != null) {
+            details.add("Na serwerze: ${formatDuration(sessionSeconds)}")
+        } else if (!item.online && item.lastSessionSeconds != null) {
+            details.add("Ostatnia sesja: ${formatDuration(item.lastSessionSeconds!!)}")
+        }
+
+        val totalSeconds = (item.totalSessionSeconds ?: 0L) +
+            if (item.online && sessionSeconds != null) sessionSeconds else 0L
+        if (totalSeconds > 0) {
+            details.add("Łącznie zmonitorowane: ${formatDuration(totalSeconds)}")
+        }
+
+        if (item.online && item.sessionStartAt != null) {
+            details.add("Online od: ${formatTimeOfDay(item.sessionStartAt!!)}")
+        } else if (!item.online && item.lastSeenAt != null) {
+            details.add("Ostatnio widziany: ${formatRelativeTime(item.lastSeenAt!!, now)}")
+        }
+
+        val joinInfo = formatTypicalHour(item.joinHourCounts, "Najczęściej dołącza")
+        if (joinInfo != null) details.add(joinInfo)
+
+        val leaveInfo = formatTypicalHour(item.leaveHourCounts, "Najczęściej rozłącza")
+        if (leaveInfo != null) details.add(leaveInfo)
+
+        return details
+    }
+
+    private fun formatDuration(seconds: Long): String {
+        val safeSeconds = seconds.coerceAtLeast(0)
+        val minutes = safeSeconds / 60
+        val hours = minutes / 60
+        val days = hours / 24
+
+        return when {
+            days > 0 -> "${days}d ${hours % 24}h"
+            hours > 0 -> "${hours}h ${minutes % 60}m"
+            else -> "${minutes}m"
+        }
+    }
+
+    private fun formatTimeOfDay(millis: Long): String {
+        val formatter = DateTimeFormatter.ofPattern("HH:mm")
+        return Instant.ofEpochMilli(millis)
+            .atZone(ZoneId.systemDefault())
+            .format(formatter)
+    }
+
+    private fun formatRelativeTime(fromMillis: Long, nowMillis: Long): String {
+        val diffSeconds = ((nowMillis - fromMillis) / 1000L).coerceAtLeast(0)
+        val minutes = diffSeconds / 60
+        val hours = minutes / 60
+        val days = hours / 24
+
+        return when {
+            diffSeconds < 60 -> "przed chwilą"
+            minutes < 60 -> "${minutes}m temu"
+            hours < 24 -> "${hours}h temu"
+            else -> "${days}d temu"
+        }
+    }
+
+    private fun incrementHourCount(counts: List<Int>?, timestamp: Long): List<Int> {
+        val next = (counts ?: List(24) { 0 }).toMutableList()
+        val hour = Instant.ofEpochMilli(timestamp)
+            .atZone(ZoneId.systemDefault())
+            .hour
+        if (hour in 0..23) {
+            next[hour] = next[hour] + 1
+        }
+        return next
+    }
+
+    private fun formatTypicalHour(counts: List<Int>?, label: String): String? {
+        val list = counts ?: return null
+        if (list.isEmpty()) return null
+        val max = list.maxOrNull() ?: return null
+        if (max <= 0) return null
+        val hour = list.indexOfFirst { it == max }.takeIf { it >= 0 } ?: return null
+        val hourLabel = String.format("%02d:00", hour)
+        return "$label: $hourLabel (${max}x)"
     }
 
     private fun createNotificationChannel() {
