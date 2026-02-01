@@ -16,6 +16,7 @@ class PlayerAdapter(
     private val onRemove: (WatchedPlayer) -> Unit,
     private val onRenameGroup: (String) -> Unit,
     private val onToggleGroupNotifications: (String) -> Unit,
+    private val onDeleteGroup: (String) -> Unit,
     private val onToggleNotifications: (WatchedPlayer) -> Unit,
     private val onStartDrag: (RecyclerView.ViewHolder) -> Unit,
     private val onReorder: (List<PlayerListItem>) -> Unit
@@ -57,9 +58,12 @@ class PlayerAdapter(
         when (val item = items[position]) {
             is PlayerListItem.Header -> (holder as HeaderVH).bind(
                 item.title,
+                item.groupName,
                 item.notificationsEnabled,
+                item.isUngrouped,
                 onRenameGroup,
-                onToggleGroupNotifications
+                onToggleGroupNotifications,
+                onDeleteGroup
             )
             is PlayerListItem.PlayerRow -> (holder as PlayerVH).bind(
                 item.player,
@@ -93,23 +97,38 @@ class PlayerAdapter(
     class HeaderVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tv: TextView = itemView.findViewById(R.id.tvGroupTitle)
         private val btnNotify: TextView = itemView.findViewById(R.id.btnGroupNotify)
+        private val btnDelete: TextView = itemView.findViewById(R.id.btnGroupDelete)
 
         fun bind(
             title: String,
+            groupName: String,
             notificationsEnabled: Boolean,
+            isUngrouped: Boolean,
             onRenameGroup: (String) -> Unit,
-            onToggleGroupNotifications: (String) -> Unit
+            onToggleGroupNotifications: (String) -> Unit,
+            onDeleteGroup: (String) -> Unit
         ) {
             tv.text = title
-            btnNotify.text = if (notificationsEnabled) "🔔" else "🔕"
-            btnNotify.setTextColor(
-                if (notificationsEnabled) Color.parseColor("#38BDF8")
-                else Color.parseColor("#94A3B8")
-            )
-            btnNotify.setOnClickListener { onToggleGroupNotifications(title) }
-            itemView.setOnLongClickListener {
-                onRenameGroup(title)
-                true
+            if (isUngrouped) {
+                btnNotify.visibility = View.GONE
+                btnDelete.visibility = View.GONE
+                btnNotify.setOnClickListener(null)
+                btnDelete.setOnClickListener(null)
+                itemView.setOnLongClickListener(null)
+            } else {
+                btnNotify.visibility = View.VISIBLE
+                btnDelete.visibility = View.VISIBLE
+                btnNotify.text = if (notificationsEnabled) "🔔" else "🔕"
+                btnNotify.setTextColor(
+                    if (notificationsEnabled) Color.parseColor("#38BDF8")
+                    else Color.parseColor("#94A3B8")
+                )
+                btnNotify.setOnClickListener { onToggleGroupNotifications(groupName) }
+                btnDelete.setOnClickListener { onDeleteGroup(groupName) }
+                itemView.setOnLongClickListener {
+                    onRenameGroup(groupName)
+                    true
+                }
             }
         }
     }

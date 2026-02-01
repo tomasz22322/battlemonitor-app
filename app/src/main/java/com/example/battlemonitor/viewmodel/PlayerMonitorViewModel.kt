@@ -14,6 +14,8 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val DEFAULT_GROUP = "DEFAULT"
+        private const val NO_GROUP = ""
+        private const val UNGROUPED_LABEL = "Bez grupy"
     }
 
     private val repository = PlayerRepository()
@@ -22,6 +24,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private val watchedPlayers = mutableListOf<WatchedPlayer>()
     private val groupNotifications = storage.loadGroupNotifications().toMutableMap()
+    private val groupDisplayNames = storage.loadGroupDisplayNames().toMutableMap()
 
     private val _items = MutableLiveData<List<PlayerListItem>>(emptyList())
     val items: LiveData<List<PlayerListItem>> = _items
@@ -39,6 +42,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             storage.save(watchedPlayers)
         }
         ensureSortOrder()
+        syncGroupDisplayNames()
         publish()
         startMonitoring()
     }
@@ -48,6 +52,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         if (trimmed.isBlank()) return
 
         val resolvedGroup = resolveGroupName(group)
+        rememberGroupName(resolvedGroup)
         watchedPlayers.add(
             WatchedPlayer(
                 key = trimmed,
@@ -71,6 +76,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         if (player.group != resolvedGroup) {
             player.group = resolvedGroup
             player.sortOrder = nextSortOrder(resolvedGroup)
+            rememberGroupName(resolvedGroup)
             storage.save(watchedPlayers)
             publish()
         }
@@ -86,7 +92,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
-        if (oldKey != newKey) {
+        if (oldKey != newKey && newKey.isNotBlank()) {
             val existingSetting = groupNotifications[oldKey]
             if (existingSetting != null && !groupNotifications.containsKey(newKey)) {
                 groupNotifications[newKey] = existingSetting
@@ -95,7 +101,20 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
                 groupNotifications.remove(oldKey)
             }
             storage.saveGroupNotifications(groupNotifications)
+        } else if (oldKey != newKey && newKey.isBlank()) {
+            if (groupNotifications.containsKey(oldKey)) {
+                groupNotifications.remove(oldKey)
+                storage.saveGroupNotifications(groupNotifications)
+            }
         }
+
+        if (normalizedOld.isNotBlank()) {
+            groupDisplayNames.remove(oldKey)
+        }
+        if (normalizedNew.isNotBlank()) {
+            groupDisplayNames[newKey] = normalizedNew
+        }
+        storage.saveGroupDisplayNames(groupDisplayNames)
 
         val keysToUpdate = if (oldKey == newKey) {
             setOf(oldKey)
@@ -117,6 +136,32 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun deleteGroup(group: String) {
+        val normalized = normalizeGroupName(group)
+        val key = groupKey(normalized)
+        if (key.isBlank()) return
+
+        val iterator = watchedPlayers.iterator()
+        var changed = false
+        while (iterator.hasNext()) {
+            val player = iterator.next()
+            if (groupKey(player.group) == key) {
+                iterator.remove()
+                changed = true
+            }
+        }
+
+        groupNotifications.remove(key)
+        groupDisplayNames.remove(key)
+        storage.saveGroupNotifications(groupNotifications)
+        storage.saveGroupDisplayNames(groupDisplayNames)
+
+        if (changed) {
+            storage.save(watchedPlayers)
+        }
+        publish()
+    }
+
     fun toggleGroupNotifications(group: String) {
         val key = groupKey(group)
         val enabledNow = groupNotifications[key] ?: true
@@ -133,14 +178,14 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun reorderPlayers(items: List<PlayerListItem>) {
-        var currentGroup = DEFAULT_GROUP
+        var currentGroup = NO_GROUP
         val groupOrder = mutableMapOf<String, Int>()
         var changed = false
 
         items.forEach { item ->
             when (item) {
                 is PlayerListItem.Header -> {
-                    currentGroup = resolveGroupName(item.title)
+                    currentGroup = resolveGroupName(item.groupName)
                 }
 
                 is PlayerListItem.PlayerRow -> {
@@ -179,15 +224,41 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     private fun buildListItems(players: List<WatchedPlayer>): List<PlayerListItem> {
         val displayNames = buildGroupDisplayNames(players)
         val grouped = players.groupBy { groupKey(it.group) }
-        val sortedKeys = sortGroupKeys(displayNames).filter { grouped.containsKey(it) }
+        val sortedKeys = sortGroupKeys(displayNames)
 
         val out = mutableListOf<PlayerListItem>()
+
+        val ungroupedPlayers = grouped[groupKey(NO_GROUP)].orEmpty()
+        if (displayNames.isNotEmpty() || ungroupedPlayers.isNotEmpty()) {
+            out.add(
+                PlayerListItem.Header(
+                    title = UNGROUPED_LABEL,
+                    groupName = NO_GROUP,
+                    groupKey = groupKey(NO_GROUP),
+                    notificationsEnabled = true,
+                    isUngrouped = true
+                )
+            )
+            val sortedUngrouped = ungroupedPlayers.sortedWith(
+                compareBy<WatchedPlayer> { it.sortOrder }
+                    .thenBy { (it.resolvedName.ifBlank { it.key }).lowercase() }
+            )
+            sortedUngrouped.forEach { out.add(PlayerListItem.PlayerRow(it)) }
+        }
 
         sortedKeys.forEach { key ->
             val list = grouped[key] ?: emptyList()
             val displayName = displayNames[key] ?: DEFAULT_GROUP
             val notificationsEnabled = groupNotifications[key] ?: true
-            out.add(PlayerListItem.Header(displayName, notificationsEnabled))
+            out.add(
+                PlayerListItem.Header(
+                    title = displayName,
+                    groupName = displayName,
+                    groupKey = key,
+                    notificationsEnabled = notificationsEnabled,
+                    isUngrouped = false
+                )
+            )
 
             val sortedPlayers = list.sortedWith(
                 compareBy<WatchedPlayer> { it.sortOrder }
@@ -202,15 +273,19 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun normalizeGroupName(name: String?): String {
         val trimmed = name?.trim().orEmpty()
-        return if (trimmed.isBlank()) DEFAULT_GROUP else trimmed
+        return if (trimmed.isBlank()) NO_GROUP else trimmed
     }
 
     private fun groupKey(name: String?): String = normalizeGroupName(name).lowercase()
 
     private fun resolveGroupName(input: String): String {
         val normalized = normalizeGroupName(input)
+        if (normalized.isBlank()) {
+            return NO_GROUP
+        }
         val key = groupKey(normalized)
-        val existing = watchedPlayers.firstOrNull { groupKey(it.group) == key }?.group
+        val existing = groupDisplayNames[key]
+            ?: watchedPlayers.firstOrNull { groupKey(it.group) == key }?.group
         return normalizeGroupName(existing ?: normalized)
     }
 
@@ -243,25 +318,26 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun buildGroupDisplayNames(players: List<WatchedPlayer>): Map<String, String> {
-        val displayNames = linkedMapOf(groupKey(DEFAULT_GROUP) to DEFAULT_GROUP)
+        val displayNames = linkedMapOf<String, String>()
+        displayNames.putAll(groupDisplayNames)
         players.forEach { player ->
             val normalized = normalizeGroupName(player.group)
-            displayNames[groupKey(normalized)] = normalized
+            if (normalized.isNotBlank()) {
+                displayNames[groupKey(normalized)] = normalized
+            }
         }
         return displayNames
     }
 
     private fun sortGroupKeys(displayNames: Map<String, String>): List<String> {
-        val defaultKey = groupKey(DEFAULT_GROUP)
         return displayNames.keys.sortedWith(
-            compareBy<String> { it != defaultKey }
-                .thenBy { displayNames[it]?.lowercase() ?: it }
+            compareBy<String> { displayNames[it]?.lowercase() ?: it }
         )
     }
 
     private fun syncGroupNotifications() {
-        val keys = watchedPlayers.map { groupKey(it.group) }.toMutableSet()
-        keys.add(groupKey(DEFAULT_GROUP))
+        val keys = watchedPlayers.map { groupKey(it.group) }.filter { it.isNotBlank() }.toMutableSet()
+        keys.addAll(groupDisplayNames.keys)
         var changed = false
         keys.forEach { key ->
             if (!groupNotifications.containsKey(key)) {
@@ -276,6 +352,33 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         }
         if (changed) {
             storage.saveGroupNotifications(groupNotifications)
+        }
+    }
+
+    private fun syncGroupDisplayNames() {
+        var changed = false
+        watchedPlayers.forEach { player ->
+            val normalized = normalizeGroupName(player.group)
+            if (normalized.isNotBlank()) {
+                val key = groupKey(normalized)
+                if (!groupDisplayNames.containsKey(key)) {
+                    groupDisplayNames[key] = normalized
+                    changed = true
+                }
+            }
+        }
+        if (changed) {
+            storage.saveGroupDisplayNames(groupDisplayNames)
+        }
+    }
+
+    private fun rememberGroupName(group: String) {
+        val normalized = normalizeGroupName(group)
+        if (normalized.isBlank()) return
+        val key = groupKey(normalized)
+        if (groupDisplayNames[key] != normalized) {
+            groupDisplayNames[key] = normalized
+            storage.saveGroupDisplayNames(groupDisplayNames)
         }
     }
 
