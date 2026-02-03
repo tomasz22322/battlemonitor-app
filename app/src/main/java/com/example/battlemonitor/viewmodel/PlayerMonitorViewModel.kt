@@ -15,7 +15,6 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         private const val DEFAULT_GROUP = "DEFAULT"
         private const val NO_GROUP = ""
-        private const val UNGROUPED_LABEL = ""
     }
 
     private val repository = PlayerRepository()
@@ -263,21 +262,21 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         val out = mutableListOf<PlayerListItem>()
 
         val ungroupedPlayers = grouped[groupKey(NO_GROUP)].orEmpty()
-        if (displayNames.isNotEmpty() || ungroupedPlayers.isNotEmpty()) {
+        val sortedUngrouped = ungroupedPlayers.sortedWith(
+            compareBy<WatchedPlayer> { it.sortOrder }
+                .thenBy { (it.resolvedName.ifBlank { it.key }).lowercase() }
+        )
+        sortedUngrouped.forEach { player ->
             out.add(
                 PlayerListItem.Header(
-                    title = UNGROUPED_LABEL,
+                    title = "",
                     groupName = NO_GROUP,
                     groupKey = groupKey(NO_GROUP),
                     notificationsEnabled = true,
                     isUngrouped = true
                 )
             )
-            val sortedUngrouped = ungroupedPlayers.sortedWith(
-                compareBy<WatchedPlayer> { it.sortOrder }
-                    .thenBy { (it.resolvedName.ifBlank { it.key }).lowercase() }
-            )
-            sortedUngrouped.forEach { out.add(PlayerListItem.PlayerRow(it)) }
+            out.add(PlayerListItem.PlayerRow(player))
         }
 
         sortedKeys.forEach { key ->

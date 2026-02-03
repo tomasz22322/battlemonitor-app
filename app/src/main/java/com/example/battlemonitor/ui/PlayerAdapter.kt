@@ -181,6 +181,7 @@ class PlayerAdapter(
         private val tv: TextView = itemView.findViewById(R.id.tvGroupTitle)
         private val btnNotify: TextView = itemView.findViewById(R.id.btnGroupNotify)
         private val btnDelete: TextView = itemView.findViewById(R.id.btnGroupDelete)
+        private val defaultLayoutParams = RecyclerView.LayoutParams(itemView.layoutParams)
 
         fun bind(
             title: String,
@@ -194,6 +195,12 @@ class PlayerAdapter(
         ) {
             tv.text = title
             if (isUngrouped) {
+                itemView.visibility = View.GONE
+                itemView.layoutParams = RecyclerView.LayoutParams(itemView.layoutParams).apply {
+                    width = 0
+                    height = 0
+                    setMargins(0, 0, 0, 0)
+                }
                 tv.visibility = View.GONE
                 tv.setOnClickListener(null)
                 btnNotify.visibility = View.GONE
@@ -201,6 +208,8 @@ class PlayerAdapter(
                 btnNotify.setOnClickListener(null)
                 btnDelete.setOnClickListener(null)
             } else {
+                itemView.visibility = View.VISIBLE
+                itemView.layoutParams = RecyclerView.LayoutParams(defaultLayoutParams)
                 tv.visibility = View.VISIBLE
                 btnNotify.visibility = View.VISIBLE
                 btnDelete.visibility = View.VISIBLE
