@@ -234,7 +234,7 @@ class PlayerAdapter(
                 }
                 metaParts.joinToString(separator = " • ")
             } else {
-                buildOfflineText(item)
+                "Offline"
             }
             tvMeta.text = metaText
             tvMeta.visibility = if (metaText.isBlank()) View.GONE else View.VISIBLE
@@ -306,21 +306,6 @@ class PlayerAdapter(
                 )
                 append(")")
             }
-        }
-
-        private fun buildOfflineText(item: WatchedPlayer): String {
-            val lastOfflineAt = item.lastOfflineAt ?: return "Offline"
-            val elapsedSeconds = ((System.currentTimeMillis() - lastOfflineAt) / 1000L)
-                .coerceAtLeast(0)
-            val elapsedText = formatOfflineDuration(elapsedSeconds) ?: return "Offline"
-            return "Offline od $elapsedText"
-        }
-
-        private fun formatOfflineDuration(seconds: Long): String? {
-            val safeSeconds = seconds.coerceAtLeast(0)
-            val minutes = safeSeconds / 60
-            val hours = minutes / 60
-            return "${hours}h ${minutes % 60}m"
         }
     }
 }

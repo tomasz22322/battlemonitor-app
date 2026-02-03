@@ -3,7 +3,6 @@ package com.example.battlemonitor.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -13,7 +12,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.battlemonitor.R
-import com.example.battlemonitor.MainActivity
 import com.example.battlemonitor.data.PlayerRepository
 import com.example.battlemonitor.data.PlayerStorage
 import com.example.battlemonitor.monitor.PlayerMonitorEngine
@@ -93,7 +91,6 @@ class PlayerMonitorService : Service() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("Monitor graczy działa w tle")
             .setContentText("Śledzenie online/offline w tle")
-            .setContentIntent(buildContentIntent())
             .setOngoing(true)
             .build()
     }
@@ -135,7 +132,6 @@ class PlayerMonitorService : Service() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(message)
-            .setContentIntent(buildContentIntent())
             .setAutoCancel(true)
             .build()
 
@@ -197,7 +193,6 @@ class PlayerMonitorService : Service() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(message)
-            .setContentIntent(buildContentIntent())
             .setAutoCancel(true)
             .build()
         notificationManager.notify("group_$groupName".hashCode(), notification)
@@ -216,13 +211,5 @@ class PlayerMonitorService : Service() {
     private fun groupKey(name: String?): String {
         val normalized = name?.trim().orEmpty()
         return normalized.lowercase()
-    }
-
-    private fun buildContentIntent(): PendingIntent {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        return PendingIntent.getActivity(this, 0, intent, flags)
     }
 }
