@@ -63,6 +63,9 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
         )
         storage.save(watchedPlayers)
         publish()
+        viewModelScope.launch {
+            scanServer()
+        }
     }
 
     fun removePlayer(player: WatchedPlayer) {
