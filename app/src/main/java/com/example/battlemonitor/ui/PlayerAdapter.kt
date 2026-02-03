@@ -311,6 +311,7 @@ class PlayerAdapter(
         private fun buildDisplayName(item: WatchedPlayer): CharSequence {
             val currentName = item.resolvedName.ifBlank { item.key }
             val originalName = item.originalName?.takeIf { it.isNotBlank() } ?: return currentName
+            if (originalName.all { it.isDigit() }) return currentName
             if (originalName.equals(currentName, ignoreCase = true)) return currentName
 
             val originalColor = itemView.context.getColor(R.color.text_secondary)
