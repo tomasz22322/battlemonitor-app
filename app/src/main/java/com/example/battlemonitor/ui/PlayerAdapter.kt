@@ -1,6 +1,7 @@
 package com.example.battlemonitor.ui
 
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
@@ -193,8 +194,8 @@ class PlayerAdapter(
                 btnDelete.visibility = View.VISIBLE
                 btnNotify.text = if (notificationsEnabled) "🔔" else "🔕"
                 btnNotify.setTextColor(
-                    if (notificationsEnabled) Color.parseColor("#38BDF8")
-                    else Color.parseColor("#94A3B8")
+                    if (notificationsEnabled) Color.parseColor("#22D3EE")
+                    else Color.parseColor("#7B8AA5")
                 )
                 btnNotify.setOnClickListener { onToggleGroupNotifications(groupName) }
                 btnDelete.setOnClickListener { onDeleteGroup(groupName) }
@@ -249,16 +250,21 @@ class PlayerAdapter(
             tvDetails.text = detailsText
             tvDetails.visibility = if (detailsText.isBlank()) View.GONE else View.VISIBLE
 
-            statusBar.setBackgroundColor(
-                if (item.online) Color.parseColor("#2E7D32")
-                else Color.parseColor("#616161")
-            )
+            val statusColor = if (item.online) {
+                Color.parseColor("#22C55E")
+            } else {
+                Color.parseColor("#475569")
+            }
+            statusBar.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(statusColor)
+            }
 
             val notificationsEnabled = item.notificationsEnabled != false
             btnNotify.text = if (notificationsEnabled) "🔔" else "🔕"
             btnNotify.setTextColor(
-                if (notificationsEnabled) Color.parseColor("#38BDF8")
-                else Color.parseColor("#94A3B8")
+                if (notificationsEnabled) Color.parseColor("#22D3EE")
+                else Color.parseColor("#7B8AA5")
             )
             btnNotify.setOnClickListener { onToggleNotifications(item) }
 

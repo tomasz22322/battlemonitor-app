@@ -4,11 +4,12 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="6dp"
     android:layout_marginTop="16dp"
-    android:layout_marginBottom="6dp"
+    android:layout_marginBottom="8dp"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingHorizontal="12dp"
-    android:paddingVertical="8dp">
+    android:background="@drawable/bg_group_header"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="10dp">
 
     <TextView
         android:id="@+id/tvGroupTitle"
@@ -17,24 +18,27 @@
         android:layout_weight="1"
         android:text="GROUP"
         android:textColor="@color/text_secondary"
-        android:textSize="13sp"
+        android:textSize="12sp"
+        android:letterSpacing="0.06"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/btnGroupNotify"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
         android:gravity="center"
+        android:background="@drawable/bg_notify_button"
         android:text="🔔"
         android:textColor="@color/accent"
         android:textSize="12sp" />
 
     <TextView
         android:id="@+id/btnGroupDelete"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_marginStart="6dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginStart="8dp"
         android:gravity="center"
+        android:background="@drawable/bg_remove_button"
         android:text="✕"
         android:textColor="@color/danger"
         android:textSize="12sp" />
