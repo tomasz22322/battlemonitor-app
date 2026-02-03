@@ -5,6 +5,7 @@ import com.example.battlemonitor.model.PlayerAttributes
 import com.example.battlemonitor.model.WatchedPlayer
 import java.time.Instant
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.time.format.DateTimeFormatter
 
 data class ScanResult(
@@ -148,6 +149,7 @@ class PlayerMonitorEngine(
         item.lastSeenAt = now
         if (!wasOnline) {
             item.joinHourCounts = incrementHourCount(item.joinHourCounts, now)
+            item.lastLoginAt = sessionStart ?: now
         }
 
         if (sessionStart != null) {
@@ -223,7 +225,7 @@ class PlayerMonitorEngine(
                 else "brak danych"
             }"
         )
-        details.add("Pierwszy raz na serwerze: ${formatTimestamp(item.createdAt)}")
+        details.add(buildLastLoginDetail(item.lastLoginAt, now))
 
         return details
     }
@@ -268,15 +270,23 @@ class PlayerMonitorEngine(
         }
     }
 
-    private fun formatDateTime(millis: Long): String {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        return Instant.ofEpochMilli(millis)
-            .atZone(ZoneId.systemDefault())
-            .format(formatter)
-    }
-
-    private fun formatTimestamp(millis: Long?): String {
-        return millis?.let { formatDateTime(it) } ?: "brak danych"
+    private fun buildLastLoginDetail(lastLoginAt: Long?, now: Long): String {
+        if (lastLoginAt == null) {
+            return "null"
+        }
+        val zone = ZoneId.systemDefault()
+        val loginDate = Instant.ofEpochMilli(lastLoginAt).atZone(zone).toLocalDate()
+        val nowDate = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val daysAgo = ChronoUnit.DAYS.between(loginDate, nowDate).toInt().coerceAtLeast(0)
+        val label = when (daysAgo) {
+            0 -> "dzisiaj"
+            1 -> "wczoraj"
+            else -> "$daysAgo dni temu"
+        }
+        val time = DateTimeFormatter.ofPattern("HH:mm")
+            .withZone(zone)
+            .format(Instant.ofEpochMilli(lastLoginAt))
+        return "Ostatnio zalogował $label o $time"
     }
 
     private fun incrementHourCount(counts: List<Int>?, timestamp: Long): List<Int> {

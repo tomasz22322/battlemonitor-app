@@ -42,6 +42,7 @@ class PlayerMonitorService : Service() {
     private lateinit var storage: PlayerStorage
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
     private val groupOfflineState = mutableMapOf<String, Boolean>()
+    private val lastKnownGroups = mutableMapOf<String, String>()
 
     override fun onCreate() {
         super.onCreate()
@@ -76,7 +77,8 @@ class PlayerMonitorService : Service() {
                             }
                         }
                     val groupNotifications = storage.loadGroupNotifications()
-                    updateGroupOfflineNotifications(players, groupNotifications)
+                    val groupChanges = detectGroupChanges(players)
+                    updateGroupOfflineNotifications(players, groupNotifications, groupChanges)
                     if (result.changed) {
                         storage.save(players)
                     }
@@ -142,7 +144,8 @@ class PlayerMonitorService : Service() {
 
     private fun updateGroupOfflineNotifications(
         players: List<WatchedPlayer>,
-        groupNotifications: Map<String, Boolean>
+        groupNotifications: Map<String, Boolean>,
+        suppressedGroups: Set<String>
     ) {
         val grouped = players.groupBy { groupKey(it.group) }
         val activeKeys = grouped.keys.filter { it.isNotBlank() }.toSet()
@@ -159,12 +162,32 @@ class PlayerMonitorService : Service() {
             }
             val allOffline = members.all { !it.online }
             val wasOffline = groupOfflineState[key] ?: false
-            if (!wasOffline && allOffline && canPostNotifications()) {
+            if (!wasOffline && allOffline && key !in suppressedGroups && canPostNotifications()) {
                 val groupName = members.firstOrNull()?.group ?: DEFAULT_GROUP
                 sendGroupOfflineNotification(groupName)
             }
             groupOfflineState[key] = allOffline
         }
+    }
+
+    private fun detectGroupChanges(players: List<WatchedPlayer>): Set<String> {
+        val currentIds = mutableSetOf<String>()
+        val changedGroups = mutableSetOf<String>()
+        players.forEach { player ->
+            val playerId = player.resolvedId?.trim()?.lowercase()
+                ?.takeIf { it.isNotBlank() }
+                ?: player.key.trim().lowercase()
+            currentIds.add(playerId)
+            val currentGroup = groupKey(player.group)
+            val previousGroup = lastKnownGroups[playerId]
+            if (previousGroup != null && previousGroup != currentGroup) {
+                if (previousGroup.isNotBlank()) changedGroups.add(previousGroup)
+                if (currentGroup.isNotBlank()) changedGroups.add(currentGroup)
+            }
+            lastKnownGroups[playerId] = currentGroup
+        }
+        lastKnownGroups.keys.retainAll(currentIds)
+        return changedGroups
     }
 
     private fun sendGroupOfflineNotification(groupName: String) {
