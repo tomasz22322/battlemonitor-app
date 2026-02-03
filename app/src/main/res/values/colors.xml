@@ -2,17 +2,19 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="bg_app_start">#0F172A</color>
-    <color name="bg_app_end">#111827</color>
-    <color name="surface">#1E293B</color>
-    <color name="surface_alt">#263449</color>
-    <color name="surface_stroke">#334155</color>
-    <color name="accent">#38BDF8</color>
-    <color name="accent_dark">#0EA5E9</color>
+    <color name="bg_app_start">#0B1120</color>
+    <color name="bg_app_end">#0F172A</color>
+    <color name="surface">#111827</color>
+    <color name="surface_alt">#1F2937</color>
+    <color name="surface_stroke">#2B3648</color>
+    <color name="surface_glass">#141C2B</color>
+    <color name="accent">#22D3EE</color>
+    <color name="accent_dark">#06B6D4</color>
+    <color name="accent_soft">#0E7490</color>
     <color name="text_primary">#F8FAFC</color>
-    <color name="text_secondary">#CBD5F5</color>
-    <color name="text_hint">#94A3B8</color>
-    <color name="text_on_accent">#0B1120</color>
-    <color name="danger">#F87171</color>
-    <color name="status_unknown">#64748B</color>
+    <color name="text_secondary">#B3C2D7</color>
+    <color name="text_hint">#7B8AA5</color>
+    <color name="text_on_accent">#07121B</color>
+    <color name="danger">#F97373</color>
+    <color name="status_unknown">#7C8AA6</color>
 </resources>

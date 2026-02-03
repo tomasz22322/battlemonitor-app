@@ -5,46 +5,52 @@
     android:orientation="vertical"
     android:fitsSystemWindows="true"
     android:background="@drawable/bg_screen"
-    android:paddingStart="24dp"
+    android:paddingStart="20dp"
     android:paddingTop="18dp"
-    android:paddingEnd="24dp"
+    android:paddingEnd="20dp"
     android:paddingBottom="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:orientation="vertical"
+        android:layout_marginBottom="14dp">
 
         <TextView
             android:id="@+id/tvTitle"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="BattleMonitor"
             android:textColor="@color/text_primary"
-            android:textSize="20sp"
+            android:textSize="24sp"
             android:textStyle="bold" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Monitoruj graczy i grupy w czasie rzeczywistym"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <!-- Pasek dodawania (nick/id + grupa + dodaj) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
         <EditText
             android:id="@+id/etPlayerKey"
             android:layout_width="0dp"
-            android:layout_height="40dp"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:background="@drawable/bg_input"
-            android:hint="Nick"
+            android:hint="Nick lub ID"
             android:singleLine="true"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_hint"
             android:textSize="15sp" />
@@ -52,14 +58,14 @@
         <Button
             android:id="@+id/btnAdd"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
+            android:layout_height="48dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/bg_primary_button"
-            android:text="Dodaj"
+            android:text="Dodaj gracza"
             android:textAllCaps="false"
             android:textColor="@color/text_on_accent"
             android:textSize="14sp"
-            android:paddingHorizontal="16dp" />
+            android:paddingHorizontal="18dp" />
     </LinearLayout>
 
     <!-- Lista graczy -->
@@ -70,6 +76,7 @@
         android:layout_marginTop="14dp"
         android:layout_weight="1"
         android:clipToPadding="false"
-        android:paddingBottom="8dp" />
+        android:paddingBottom="8dp"
+        android:paddingTop="4dp" />
 
 </LinearLayout>
