@@ -146,9 +146,10 @@ class PlayerMonitorEngine(
             if (key.all { it.isDigit() }) item.resolvedId = key
         }
 
-        item.lastSeenAt = now
         if (!wasOnline) {
-            item.joinHourCounts = incrementHourCount(item.joinHourCounts, now)
+            val loginAt = sessionStart ?: now
+            item.lastSeenAt = loginAt
+            item.joinHourCounts = incrementHourCount(item.joinHourCounts, loginAt)
         }
 
         if (sessionStart != null) {
@@ -224,7 +225,8 @@ class PlayerMonitorEngine(
                 else "brak danych"
             }"
         )
-        details.add(buildLastLoginDetails(item.lastSeenAt ?: item.lastSeenApiAt, now))
+        details.add(buildLastLoginDetails(item.lastSeenAt, now))
+        details.add(buildLastLogoutDetails(item.lastOfflineAt, now))
 
         return details
     }
@@ -285,6 +287,24 @@ class PlayerMonitorEngine(
         }
         val timeText = loginDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
         return "Ostatnio zalogował $dayLabel o $timeText"
+    }
+
+    private fun buildLastLogoutDetails(lastLogoutAt: Long?, now: Long): String {
+        if (lastLogoutAt == null) {
+            return "Wylogował null"
+        }
+        val zone = ZoneId.systemDefault()
+        val logoutDateTime = Instant.ofEpochMilli(lastLogoutAt).atZone(zone)
+        val nowDate = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val logoutDate = logoutDateTime.toLocalDate()
+        val daysAgo = ChronoUnit.DAYS.between(logoutDate, nowDate).coerceAtLeast(0)
+        val dayLabel = when (daysAgo) {
+            0L -> "dzisiaj"
+            1L -> "wczoraj"
+            else -> "$daysAgo dni temu"
+        }
+        val timeText = logoutDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+        return "Wylogował $dayLabel o $timeText"
     }
 
     private fun incrementHourCount(counts: List<Int>?, timestamp: Long): List<Int> {
