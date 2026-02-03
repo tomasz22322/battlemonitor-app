@@ -247,8 +247,14 @@ class PlayerMonitorEngine(
     }
 
     private fun buildStatusDetails(item: WatchedPlayer, now: Long): List<String> {
+        val loginLabel = if (item.online) "Online od" else "Ostatnio zalogował"
+        val loginTimestamp = if (item.online) {
+            item.sessionStartAt ?: item.lastSeenAt
+        } else {
+            item.lastSeenAt
+        }
         val entries = listOf(
-            StatusDetail("Ostatnio zalogował", item.lastSeenAt),
+            StatusDetail(loginLabel, loginTimestamp),
             StatusDetail("Wylogował", item.lastOfflineAt)
         )
         val (withTimestamp, withoutTimestamp) = entries.partition { it.timestamp != null }

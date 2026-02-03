@@ -70,6 +70,7 @@ class PlayerMonitorService : Service() {
                 if (players.isNotEmpty()) {
                     val result = engine.scan(players)
                     val groupNotifications = storage.loadGroupNotifications()
+                    val appInForeground = storage.isAppInForeground()
                     result.statusChanges
                         .filter { (player, _) ->
                             val groupKey = groupKey(player.group)
@@ -77,11 +78,11 @@ class PlayerMonitorService : Service() {
                             groupEnabled && player.notificationsEnabled != false
                         }
                         .forEach { (player, isOnline) ->
-                            if (canPostNotifications()) {
+                            if (!appInForeground && canPostNotifications()) {
                                 sendStatusNotification(player, isOnline)
                             }
                         }
-                    updateGroupOfflineNotifications(players, groupNotifications)
+                    updateGroupOfflineNotifications(players, groupNotifications, appInForeground)
                     if (result.changed) {
                         storage.save(players)
                     }
@@ -148,7 +149,8 @@ class PlayerMonitorService : Service() {
 
     private fun updateGroupOfflineNotifications(
         players: List<WatchedPlayer>,
-        groupNotifications: Map<String, Boolean>
+        groupNotifications: Map<String, Boolean>,
+        appInForeground: Boolean
     ) {
         val grouped = players.groupBy { groupKey(it.group) }
         val activeKeys = grouped.keys.filter { it.isNotBlank() }.toSet()
@@ -175,7 +177,7 @@ class PlayerMonitorService : Service() {
                 groupOfflineState[key] = allOffline
                 return@forEach
             }
-            if (!wasOffline && allOffline && canPostNotifications()) {
+            if (!wasOffline && allOffline && !appInForeground && canPostNotifications()) {
                 val groupName = members.firstOrNull()?.group ?: DEFAULT_GROUP
                 sendGroupOfflineNotification(groupName)
             }
