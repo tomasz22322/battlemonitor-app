@@ -9,6 +9,7 @@ class PlayerStorage(context: Context) {
 
     private val prefs = context.getSharedPreferences("battle_monitor_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
+    private val appForegroundKey = "app_in_foreground"
 
     fun save(players: List<WatchedPlayer>) {
         val json = gson.toJson(players)
@@ -87,5 +88,13 @@ class PlayerStorage(context: Context) {
         } catch (_: Exception) {
             mutableListOf()
         }
+    }
+
+    fun setAppInForeground(isForeground: Boolean) {
+        prefs.edit().putBoolean(appForegroundKey, isForeground).apply()
+    }
+
+    fun isAppInForeground(): Boolean {
+        return prefs.getBoolean(appForegroundKey, false)
     }
 }
