@@ -15,7 +15,6 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.battlemonitor.data.PlayerStorage
 import com.example.battlemonitor.service.PlayerMonitorService
 import com.example.battlemonitor.ui.GroupBackgroundDecoration
 import com.example.battlemonitor.ui.PlayerAdapter
@@ -24,7 +23,6 @@ import com.example.battlemonitor.viewmodel.PlayerMonitorViewModel
 class MainActivity : AppCompatActivity() {
 
     private val vm: PlayerMonitorViewModel by viewModels()
-    private lateinit var storage: PlayerStorage
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -32,7 +30,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        storage = PlayerStorage(applicationContext)
         requestNotificationPermissionIfNeeded()
         startBackgroundMonitoring()
 
@@ -134,16 +131,6 @@ class MainActivity : AppCompatActivity() {
         vm.items.observe(this) { list ->
             adapter.submitList(list)
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        storage.setAppInForeground(true)
-    }
-
-    override fun onStop() {
-        storage.setAppInForeground(false)
-        super.onStop()
     }
 
     private fun requestNotificationPermissionIfNeeded() {
