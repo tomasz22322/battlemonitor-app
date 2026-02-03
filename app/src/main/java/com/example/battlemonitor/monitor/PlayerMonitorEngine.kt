@@ -6,6 +6,7 @@ import com.example.battlemonitor.model.WatchedPlayer
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 data class ScanResult(
     val changed: Boolean,
@@ -223,7 +224,7 @@ class PlayerMonitorEngine(
                 else "brak danych"
             }"
         )
-        details.add("Pierwszy raz na serwerze: ${formatTimestamp(item.createdAt)}")
+        details.add(buildLastLoginDetails(item.lastSeenAt ?: item.lastSeenApiAt, now))
 
         return details
     }
@@ -268,15 +269,22 @@ class PlayerMonitorEngine(
         }
     }
 
-    private fun formatDateTime(millis: Long): String {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        return Instant.ofEpochMilli(millis)
-            .atZone(ZoneId.systemDefault())
-            .format(formatter)
-    }
-
-    private fun formatTimestamp(millis: Long?): String {
-        return millis?.let { formatDateTime(it) } ?: "brak danych"
+    private fun buildLastLoginDetails(lastLoginAt: Long?, now: Long): String {
+        if (lastLoginAt == null) {
+            return "Ostatnio zalogował null"
+        }
+        val zone = ZoneId.systemDefault()
+        val loginDateTime = Instant.ofEpochMilli(lastLoginAt).atZone(zone)
+        val nowDate = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val loginDate = loginDateTime.toLocalDate()
+        val daysAgo = ChronoUnit.DAYS.between(loginDate, nowDate).coerceAtLeast(0)
+        val dayLabel = when (daysAgo) {
+            0L -> "dzisiaj"
+            1L -> "wczoraj"
+            else -> "$daysAgo dni temu"
+        }
+        val timeText = loginDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+        return "Ostatnio zalogował $dayLabel o $timeText"
     }
 
     private fun incrementHourCount(counts: List<Int>?, timestamp: Long): List<Int> {
