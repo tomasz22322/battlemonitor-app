@@ -19,6 +19,7 @@ class PlayerMonitorEngine(
 
     private companion object {
         private const val INFO_TTL_MS = 60_000L
+        private const val UTC_OFFSET_MS = 3_600_000L
     }
 
     suspend fun scan(players: MutableList<WatchedPlayer>): ScanResult {
@@ -233,7 +234,8 @@ class PlayerMonitorEngine(
         val details = mutableListOf<String>()
         val battleMetricsId = item.battleMetricsId ?: item.resolvedId
         details.add("ID BM: ${battleMetricsId ?: "brak danych"}")
-        val updatedAtForStay = parseUpdatedAtFromDetails(apiDetails) ?: item.updatedAt
+        val apiUpdatedAt = parseUpdatedAtFromDetails(apiDetails) ?: item.updatedAt
+        val updatedAtForStay = apiUpdatedAt
         val staySeconds = updatedAtForStay?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(
             "Czas przebywania: ${
@@ -241,14 +243,15 @@ class PlayerMonitorEngine(
                 else "brak danych"
             }"
         )
-        details.addAll(buildStatusDetails(item, now))
+        val adjustedLoginAt = apiUpdatedAt?.plus(UTC_OFFSET_MS)
+        details.addAll(buildStatusDetails(item, now, adjustedLoginAt))
 
         return details
     }
 
-    private fun buildStatusDetails(item: WatchedPlayer, now: Long): List<String> {
+    private fun buildStatusDetails(item: WatchedPlayer, now: Long, loginAt: Long?): List<String> {
         val entries = listOf(
-            StatusDetail("Ostatnio zalogował", item.lastSeenAt),
+            StatusDetail("Ostatnio zalogował", loginAt ?: item.lastSeenAt),
             StatusDetail("Wylogował", item.lastOfflineAt)
         )
         val (withTimestamp, withoutTimestamp) = entries.partition { it.timestamp != null }
