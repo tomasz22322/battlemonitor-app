@@ -34,6 +34,9 @@ class PlayerMonitorEngine(
             }
         }.toSet()
         val snapshot = repository.fetchOnlinePlayers(watchedKeys)
+        if (!snapshot.isDataValid) {
+            return ScanResult(changed = false, statusChanges = emptyList())
+        }
         val onlineMap = snapshot.players
         val sessionStartTimes = snapshot.sessionStartTimes
         val serverName = snapshot.serverName?.takeIf { it.isNotBlank() }

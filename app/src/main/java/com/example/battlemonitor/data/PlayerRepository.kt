@@ -11,7 +11,8 @@ import java.time.Instant
 data class OnlinePlayersSnapshot(
     val serverName: String?,
     val players: Map<String, PlayerAttributes>,
-    val sessionStartTimes: Map<String, Long>
+    val sessionStartTimes: Map<String, Long>,
+    val isDataValid: Boolean
 )
 
 data class PlayerInfo(
@@ -51,7 +52,8 @@ class PlayerRepository {
                 return OnlinePlayersSnapshot(
                     serverName = null,
                     players = emptyMap(),
-                    sessionStartTimes = emptyMap()
+                    sessionStartTimes = emptyMap(),
+                    isDataValid = false
                 )
             }
 
@@ -61,7 +63,8 @@ class PlayerRepository {
                 return OnlinePlayersSnapshot(
                     serverName = null,
                     players = emptyMap(),
-                    sessionStartTimes = emptyMap()
+                    sessionStartTimes = emptyMap(),
+                    isDataValid = false
                 )
             }
 
@@ -119,14 +122,16 @@ class PlayerRepository {
             OnlinePlayersSnapshot(
                 serverName = serverName,
                 players = result,
-                sessionStartTimes = sessionStartTimes
+                sessionStartTimes = sessionStartTimes,
+                isDataValid = true
             )
         } catch (e: Exception) {
             Log.e("BM", "fetchOnlinePlayers exception: ${e.message}", e)
             OnlinePlayersSnapshot(
                 serverName = null,
                 players = emptyMap(),
-                sessionStartTimes = emptyMap()
+                sessionStartTimes = emptyMap(),
+                isDataValid = false
             )
         }
     }
