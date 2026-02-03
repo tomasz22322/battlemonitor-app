@@ -130,12 +130,24 @@ class PlayerAdapter(
     ): Boolean {
         val fromItem = items.getOrNull(fromPosition) as? PlayerListItem.PlayerRow ?: return false
         val insertionIndex = when (targetItem) {
-            is PlayerListItem.Header -> (toPosition + 1).coerceAtMost(items.size)
+            is PlayerListItem.Header -> {
+                val movingDown = toPosition > fromPosition
+                val headerRange = findGroupRange(toPosition)
+                val rawIndex = if (movingDown) headerRange.last + 1 else toPosition + 1
+                rawIndex.coerceAtMost(items.size)
+            }
             is PlayerListItem.PlayerRow -> toPosition
         }
-        if (insertionIndex == fromPosition || insertionIndex == fromPosition + 1) return false
+        if (insertionIndex == fromPosition) return false
+        if (targetItem is PlayerListItem.PlayerRow && toPosition == fromPosition + 1) {
+            items[fromPosition] = targetItem
+            items[toPosition] = fromItem
+            notifyItemMoved(fromPosition, toPosition)
+            return true
+        }
         items.removeAt(fromPosition)
         val adjustedIndex = if (insertionIndex > fromPosition) insertionIndex - 1 else insertionIndex
+        if (adjustedIndex == fromPosition) return false
         items.add(adjustedIndex, fromItem)
         notifyItemMoved(fromPosition, adjustedIndex)
         return true
