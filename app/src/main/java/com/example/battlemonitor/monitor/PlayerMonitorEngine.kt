@@ -235,8 +235,11 @@ class PlayerMonitorEngine(
         val details = mutableListOf<String>()
         val battleMetricsId = item.battleMetricsId ?: item.resolvedId
         details.add("ID BM: ${battleMetricsId ?: "brak danych"}")
-        val apiUpdatedAt = parseUpdatedAtFromDetails(apiDetails) ?: item.updatedAt
-        val updatedAtForStay = apiUpdatedAt
+        val apiUpdatedAt = parseUpdatedAtFromDetails(apiDetails)
+        if (item.online && apiUpdatedAt != null) {
+            item.lastSeenAt = apiUpdatedAt
+        }
+        val updatedAtForStay = apiUpdatedAt ?: item.updatedAt
         val staySeconds = updatedAtForStay?.let { ((now - it) / 1000L).coerceAtLeast(0) }
         details.add(
             "Czas przebywania: ${
@@ -245,10 +248,10 @@ class PlayerMonitorEngine(
             }"
         )
         val loginAt = if (item.online) {
-            apiUpdatedAt ?: item.lastSeenApiAt
+            item.lastSeenAt ?: item.lastSeenApiAt
         } else {
-            item.lastSeenApiAt
-        } ?: item.lastSeenAt
+            item.lastSeenApiAt ?: item.lastSeenAt
+        }
         details.addAll(buildStatusDetails(item, now, loginAt))
 
         return details
@@ -256,7 +259,7 @@ class PlayerMonitorEngine(
 
     private fun buildStatusDetails(item: WatchedPlayer, now: Long, loginAt: Long?): List<String> {
         val entries = listOf(
-            StatusDetail("Ostatnio zalogował", loginAt ?: item.lastSeenAt),
+            StatusDetail("Zalogował", loginAt ?: item.lastSeenAt),
             StatusDetail("Wylogował", item.lastOfflineAt)
         )
         val (withTimestamp, withoutTimestamp) = entries.partition { it.timestamp != null }
