@@ -42,6 +42,7 @@ class PlayerMonitorService : Service() {
     private lateinit var storage: PlayerStorage
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
     private val groupOfflineState = mutableMapOf<String, Boolean>()
+    private val groupMembershipSignatures = mutableMapOf<String, String>()
 
     override fun onCreate() {
         super.onCreate()
@@ -147,11 +148,17 @@ class PlayerMonitorService : Service() {
         val grouped = players.groupBy { groupKey(it.group) }
         val activeKeys = grouped.keys.filter { it.isNotBlank() }.toSet()
         groupOfflineState.keys.retainAll(activeKeys)
+        groupMembershipSignatures.keys.retainAll(activeKeys)
 
         grouped.forEach { (key, members) ->
             if (key.isBlank()) {
                 return@forEach
             }
+            val signature = buildGroupSignature(members)
+            val previousSignature = groupMembershipSignatures[key]
+            val membershipChanged = previousSignature != null && previousSignature != signature
+            val isFirstSeen = previousSignature == null
+            groupMembershipSignatures[key] = signature
             val enabled = groupNotifications[key] ?: true
             if (!enabled) {
                 groupOfflineState[key] = false
@@ -159,6 +166,10 @@ class PlayerMonitorService : Service() {
             }
             val allOffline = members.all { !it.online }
             val wasOffline = groupOfflineState[key] ?: false
+            if ((membershipChanged || isFirstSeen)) {
+                groupOfflineState[key] = allOffline
+                return@forEach
+            }
             if (!wasOffline && allOffline && canPostNotifications()) {
                 val groupName = members.firstOrNull()?.group ?: DEFAULT_GROUP
                 sendGroupOfflineNotification(groupName)
@@ -193,6 +204,14 @@ class PlayerMonitorService : Service() {
     private fun groupKey(name: String?): String {
         val normalized = name?.trim().orEmpty()
         return normalized.lowercase()
+    }
+
+    private fun buildGroupSignature(members: List<WatchedPlayer>): String {
+        return members
+            .map { it.resolvedId?.trim().orEmpty().ifBlank { it.key } }
+            .map { it.trim().lowercase() }
+            .sorted()
+            .joinToString(separator = "|")
     }
 
     private fun buildContentIntent(): PendingIntent {
