@@ -251,7 +251,7 @@ class PlayerAdapter(
             val metaText = if (item.online) {
                 val metaParts = mutableListOf("Online")
                 if (stayEntry != null) {
-                    metaParts.add(stripStayPrefix(stayEntry))
+                    metaParts.add(stayEntry)
                 }
                 metaParts.joinToString(separator = " • ")
             } else {
@@ -308,51 +308,41 @@ class PlayerAdapter(
             }
         }
 
-        private fun stripStayPrefix(entry: String): String {
-            val trimmed = entry.trim()
-            val prefix = "Czas przebywania:"
-            return if (trimmed.startsWith(prefix, ignoreCase = true)) {
-                trimmed.substringAfter(":", "").trim()
-            } else {
-                trimmed
+        private fun buildDisplayName(item: WatchedPlayer): CharSequence {
+            val currentName = item.resolvedName.ifBlank { item.key }
+            val originalName = item.originalName?.takeIf { it.isNotBlank() } ?: return currentName
+            if (originalName.all { it.isDigit() }) return currentName
+            if (originalName.equals(currentName, ignoreCase = true)) return currentName
+
+            val originalColor = itemView.context.getColor(R.color.text_secondary)
+            return SpannableStringBuilder().apply {
+                append(currentName)
+                append(" (")
+                val start = length
+                append(originalName)
+                setSpan(
+                    ForegroundColorSpan(originalColor),
+                    start,
+                    length,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                append(")")
             }
         }
-    }
 
-    private fun buildDisplayName(item: WatchedPlayer): CharSequence {
-        val currentName = item.resolvedName.ifBlank { item.key }
-        val originalName = item.originalName?.takeIf { it.isNotBlank() } ?: return currentName
-        if (originalName.all { it.isDigit() }) return currentName
-        if (originalName.equals(currentName, ignoreCase = true)) return currentName
-
-        val originalColor = itemView.context.getColor(R.color.text_secondary)
-        return SpannableStringBuilder().apply {
-            append(currentName)
-            append(" (")
-            val start = length
-            append(originalName)
-            setSpan(
-                ForegroundColorSpan(originalColor),
-                start,
-                length,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            append(")")
+        private fun buildOfflineText(item: WatchedPlayer): String {
+            val lastOfflineAt = item.lastOfflineAt ?: return "Offline"
+            val elapsedSeconds = ((System.currentTimeMillis() - lastOfflineAt) / 1000L)
+                .coerceAtLeast(0)
+            val elapsedText = formatOfflineDuration(elapsedSeconds) ?: return "Offline"
+            return "Offline od $elapsedText"
         }
-    }
 
-    private fun buildOfflineText(item: WatchedPlayer): String {
-        val lastOfflineAt = item.lastOfflineAt ?: return "Offline"
-        val elapsedSeconds = ((System.currentTimeMillis() - lastOfflineAt) / 1000L)
-            .coerceAtLeast(0)
-        val elapsedText = formatOfflineDuration(elapsedSeconds) ?: return "Offline"
-        return "Offline od $elapsedText"
-    }
-
-    private fun formatOfflineDuration(seconds: Long): String? {
-        val safeSeconds = seconds.coerceAtLeast(0)
-        val minutes = safeSeconds / 60
-        val hours = minutes / 60
-        return "${hours}h ${minutes % 60}m"
+        private fun formatOfflineDuration(seconds: Long): String? {
+            val safeSeconds = seconds.coerceAtLeast(0)
+            val minutes = safeSeconds / 60
+            val hours = minutes / 60
+            return "${hours}h ${minutes % 60}m"
+        }
     }
 }
