@@ -4,10 +4,10 @@
     android:id="@+id/card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="6dp"
-    android:layout_marginVertical="8dp"
-    app:cardCornerRadius="18dp"
-    app:cardElevation="4dp"
+    android:layout_marginHorizontal="4dp"
+    android:layout_marginVertical="4dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="3dp"
     app:cardUseCompatPadding="true"
     app:cardPreventCornerOverlap="true"
     app:cardBackgroundColor="@color/surface">
@@ -17,8 +17,8 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="14dp"
-        android:paddingVertical="12dp">
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp">
 
         <!-- pasek statusu -->
         <View
@@ -52,7 +52,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="2"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="1dp"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
 
@@ -60,7 +60,7 @@
                 android:id="@+id/tvDetails"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="3dp"
                 android:text="Country: PL\nSteam ID: 123"
                 android:textColor="@color/text_hint"
                 android:textSize="10sp"
