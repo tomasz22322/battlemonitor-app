@@ -69,14 +69,18 @@ class PlayerMonitorService : Service() {
                 val players = storage.load().toMutableList()
                 if (players.isNotEmpty()) {
                     val result = engine.scan(players)
+                    val groupNotifications = storage.loadGroupNotifications()
                     result.statusChanges
-                        .filter { it.first.notificationsEnabled != false }
+                        .filter { (player, _) ->
+                            val groupKey = groupKey(player.group)
+                            val groupEnabled = groupNotifications[groupKey] ?: true
+                            groupEnabled && player.notificationsEnabled != false
+                        }
                         .forEach { (player, isOnline) ->
                             if (canPostNotifications()) {
                                 sendStatusNotification(player, isOnline)
                             }
                         }
-                    val groupNotifications = storage.loadGroupNotifications()
                     updateGroupOfflineNotifications(players, groupNotifications)
                     if (result.changed) {
                         storage.save(players)
@@ -102,7 +106,7 @@ class PlayerMonitorService : Service() {
             val statusChannel = NotificationChannel(
                 STATUS_CHANNEL_ID,
                 "Zmiany online/offline",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Powiadomienia o zmianach statusu graczy"
             }
@@ -136,6 +140,7 @@ class PlayerMonitorService : Service() {
             .setContentText(message)
             .setContentIntent(buildContentIntent())
             .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
 
         notificationManager.notify(displayName.hashCode(), notification)

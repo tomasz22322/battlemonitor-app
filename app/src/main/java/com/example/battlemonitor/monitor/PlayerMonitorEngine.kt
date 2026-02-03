@@ -241,10 +241,21 @@ class PlayerMonitorEngine(
                 else "brak danych"
             }"
         )
-        details.add(buildLastLoginDetails(item.lastSeenAt, now))
-        details.add(buildLastLogoutDetails(item.lastOfflineAt, now))
+        details.addAll(buildStatusDetails(item, now))
 
         return details
+    }
+
+    private fun buildStatusDetails(item: WatchedPlayer, now: Long): List<String> {
+        val entries = listOf(
+            StatusDetail("Ostatnio zalogował", item.lastSeenAt),
+            StatusDetail("Wylogował", item.lastOfflineAt)
+        )
+        val (withTimestamp, withoutTimestamp) = entries.partition { it.timestamp != null }
+        val ordered = withTimestamp.sortedByDescending { it.timestamp }
+        return ordered
+            .map { buildRelativeTimeDetails(it.label, it.timestamp, now) } +
+            withoutTimestamp.map { buildRelativeTimeDetails(it.label, it.timestamp, now) }
     }
 
     private fun parseUpdatedAtFromDetails(details: List<String>): Long? {
@@ -287,13 +298,7 @@ class PlayerMonitorEngine(
         }
     }
 
-    private fun buildLastLoginDetails(lastLoginAt: Long?, now: Long): String {
-        return buildRelativeTimeDetails("Ostatnio zalogował", lastLoginAt, now)
-    }
-
-    private fun buildLastLogoutDetails(lastLogoutAt: Long?, now: Long): String {
-        return buildRelativeTimeDetails("Wylogował", lastLogoutAt, now)
-    }
+    private data class StatusDetail(val label: String, val timestamp: Long?)
 
     private fun buildRelativeTimeDetails(label: String, timestamp: Long?, now: Long): String {
         if (timestamp == null) {
