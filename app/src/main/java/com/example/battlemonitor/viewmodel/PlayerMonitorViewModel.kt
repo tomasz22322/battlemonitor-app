@@ -1,17 +1,7 @@
 package com.example.battlemonitor.viewmodel
 
-import android.Manifest
 import android.app.Application
-import android.app.PendingIntent
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.*
-import com.example.battlemonitor.MainActivity
-import com.example.battlemonitor.R
 import com.example.battlemonitor.data.PlayerRepository
 import com.example.battlemonitor.data.PlayerStorage
 import com.example.battlemonitor.model.WatchedPlayer
@@ -25,21 +15,16 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         private const val DEFAULT_GROUP = "DEFAULT"
         private const val NO_GROUP = ""
-        private const val STATUS_CHANNEL_ID = "player_status"
     }
 
     private val repository = PlayerRepository()
     private val engine = PlayerMonitorEngine(repository)
     private val storage = PlayerStorage(app.applicationContext)
-    private val notificationManager = NotificationManagerCompat.from(app.applicationContext)
-    private val appContext = app.applicationContext
 
     private val watchedPlayers = mutableListOf<WatchedPlayer>()
     private val groupNotifications = storage.loadGroupNotifications().toMutableMap()
     private val groupDisplayNames = storage.loadGroupDisplayNames().toMutableMap()
     private val groupOrder = storage.loadGroupOrder().toMutableList()
-    private val groupOfflineState = mutableMapOf<String, Boolean>()
-    private val groupMembershipSignatures = mutableMapOf<String, String>()
 
     private val _items = MutableLiveData<List<PlayerListItem>>(emptyList())
     val items: LiveData<List<PlayerListItem>> = _items
@@ -453,119 +438,9 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun scanServer() {
         val result = engine.scan(watchedPlayers)
-        sendStatusNotifications(result.statusChanges)
-        updateGroupOfflineNotifications(watchedPlayers)
         if (result.changed) {
             storage.save(watchedPlayers)
             publish()
         }
-    }
-
-    private fun sendStatusNotifications(statusChanges: List<Pair<WatchedPlayer, Boolean>>) {
-        if (statusChanges.isEmpty()) return
-        if (!canPostNotifications()) return
-        statusChanges
-            .filter { (player, _) ->
-                val key = groupKey(player.group)
-                val groupEnabled = groupNotifications[key] ?: true
-                groupEnabled && player.notificationsEnabled != false
-            }
-            .forEach { (player, isOnline) ->
-                sendStatusNotification(player, isOnline)
-            }
-    }
-
-    private fun sendStatusNotification(player: WatchedPlayer, isOnline: Boolean) {
-        val displayName = player.resolvedName.ifBlank { player.key }
-        val title = if (isOnline) "Gracz online" else "Gracz offline"
-        val message = if (isOnline) {
-            "$displayName jest online"
-        } else {
-            "$displayName jest offline"
-        }
-
-        val notification = NotificationCompat.Builder(appContext, STATUS_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setContentIntent(buildContentIntent())
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .build()
-
-        notificationManager.notify(displayName.hashCode(), notification)
-    }
-
-    private fun updateGroupOfflineNotifications(players: List<WatchedPlayer>) {
-        val grouped = players.groupBy { groupKey(it.group) }
-        val activeKeys = grouped.keys.filter { it.isNotBlank() }.toSet()
-        groupOfflineState.keys.retainAll(activeKeys)
-        groupMembershipSignatures.keys.retainAll(activeKeys)
-
-        grouped.forEach { (key, members) ->
-            if (key.isBlank()) {
-                return@forEach
-            }
-            val signature = buildGroupSignature(members)
-            val previousSignature = groupMembershipSignatures[key]
-            val membershipChanged = previousSignature != null && previousSignature != signature
-            val isFirstSeen = previousSignature == null
-            groupMembershipSignatures[key] = signature
-            val enabled = groupNotifications[key] ?: true
-            if (!enabled) {
-                groupOfflineState[key] = false
-                return@forEach
-            }
-            val allOffline = members.all { !it.online }
-            val wasOffline = groupOfflineState[key] ?: false
-            if ((membershipChanged || isFirstSeen)) {
-                groupOfflineState[key] = allOffline
-                return@forEach
-            }
-            if (!wasOffline && allOffline && canPostNotifications()) {
-                val groupName = members.firstOrNull()?.group ?: DEFAULT_GROUP
-                sendGroupOfflineNotification(groupName)
-            }
-            groupOfflineState[key] = allOffline
-        }
-    }
-
-    private fun sendGroupOfflineNotification(groupName: String) {
-        val title = "Grupa offline"
-        val message = "Wszyscy gracze w grupie $groupName są offline"
-        val notification = NotificationCompat.Builder(appContext, STATUS_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setContentIntent(buildContentIntent())
-            .setAutoCancel(true)
-            .build()
-        notificationManager.notify("group_$groupName".hashCode(), notification)
-    }
-
-    private fun canPostNotifications(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            return true
-        }
-        return ContextCompat.checkSelfPermission(
-            appContext,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun buildContentIntent(): PendingIntent {
-        val intent = Intent(appContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        return PendingIntent.getActivity(appContext, 0, intent, flags)
-    }
-
-    private fun buildGroupSignature(members: List<WatchedPlayer>): String {
-        return members
-            .map { it.resolvedId?.trim().orEmpty().ifBlank { it.key } }
-            .map { it.trim().lowercase() }
-            .sorted()
-            .joinToString(separator = "|")
     }
 }
