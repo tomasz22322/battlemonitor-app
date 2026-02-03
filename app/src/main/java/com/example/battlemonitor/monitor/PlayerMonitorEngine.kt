@@ -19,7 +19,6 @@ class PlayerMonitorEngine(
 
     private companion object {
         private const val INFO_TTL_MS = 60_000L
-        private const val UTC_OFFSET_MS = 3_600_000L
     }
 
     suspend fun scan(players: MutableList<WatchedPlayer>): ScanResult {
@@ -218,7 +217,9 @@ class PlayerMonitorEngine(
             item.battleMetricsId = info.id
             item.createdAt = info.createdAt
             item.updatedAt = info.updatedAt
-            item.lastSeenApiAt = info.lastSeenAt
+            if (item.online) {
+                item.lastSeenApiAt = info.lastSeenAt
+            }
             if (!info.steamId.isNullOrBlank()) {
                 item.steamId = info.steamId
             }
@@ -243,8 +244,12 @@ class PlayerMonitorEngine(
                 else "brak danych"
             }"
         )
-        val adjustedLoginAt = apiUpdatedAt?.plus(UTC_OFFSET_MS)
-        details.addAll(buildStatusDetails(item, now, adjustedLoginAt))
+        val loginAt = if (item.online) {
+            apiUpdatedAt ?: item.lastSeenApiAt
+        } else {
+            item.lastSeenApiAt
+        } ?: item.lastSeenAt
+        details.addAll(buildStatusDetails(item, now, loginAt))
 
         return details
     }
