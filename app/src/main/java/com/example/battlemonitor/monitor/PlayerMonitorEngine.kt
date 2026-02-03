@@ -77,8 +77,24 @@ class PlayerMonitorEngine(
 
             val apiDetails = found?.buildDetails().orEmpty()
 
+            val isInitialOnline = !wasOnline &&
+                found != null &&
+                item.lastSeenAt == null &&
+                item.lastOfflineAt == null &&
+                item.sessionStartAt == null &&
+                item.lastSessionSeconds == null &&
+                item.totalSessionSeconds == null
+
             if (found != null) {
-                updateOnlinePlayer(item, found, serverName, now, wasOnline, sessionStart)
+                updateOnlinePlayer(
+                    item = item,
+                    found = found,
+                    serverName = serverName,
+                    now = now,
+                    wasOnline = wasOnline,
+                    sessionStart = sessionStart,
+                    shouldRecordLogin = !isInitialOnline && !wasOnline
+                )
             } else {
                 updateOfflinePlayer(item, now, wasOnline)
             }
@@ -107,7 +123,7 @@ class PlayerMonitorEngine(
                 changed = true
             }
 
-            if (wasOnline != item.online) {
+            if (wasOnline != item.online && !isInitialOnline) {
                 statusChanges.add(item to item.online)
             }
         }
@@ -121,7 +137,8 @@ class PlayerMonitorEngine(
         serverName: String?,
         now: Long,
         wasOnline: Boolean,
-        sessionStart: Long?
+        sessionStart: Long?,
+        shouldRecordLogin: Boolean
     ) {
         item.online = true
 
@@ -146,8 +163,8 @@ class PlayerMonitorEngine(
             if (key.all { it.isDigit() }) item.resolvedId = key
         }
 
-        item.lastSeenAt = now
-        if (!wasOnline) {
+        if (shouldRecordLogin) {
+            item.lastSeenAt = now
             item.joinHourCounts = incrementHourCount(item.joinHourCounts, now)
         }
 
@@ -224,7 +241,8 @@ class PlayerMonitorEngine(
                 else "brak danych"
             }"
         )
-        details.add(buildLastLoginDetails(item.lastSeenAt ?: item.lastSeenApiAt, now))
+        details.add(buildLastLoginDetails(item.lastSeenAt, now))
+        details.add(buildLastLogoutDetails(item.lastOfflineAt, now))
 
         return details
     }
@@ -270,21 +288,29 @@ class PlayerMonitorEngine(
     }
 
     private fun buildLastLoginDetails(lastLoginAt: Long?, now: Long): String {
-        if (lastLoginAt == null) {
-            return "Ostatnio zalogował null"
+        return buildRelativeTimeDetails("Ostatnio zalogował", lastLoginAt, now)
+    }
+
+    private fun buildLastLogoutDetails(lastLogoutAt: Long?, now: Long): String {
+        return buildRelativeTimeDetails("Wylogował", lastLogoutAt, now)
+    }
+
+    private fun buildRelativeTimeDetails(label: String, timestamp: Long?, now: Long): String {
+        if (timestamp == null) {
+            return "$label null"
         }
         val zone = ZoneId.systemDefault()
-        val loginDateTime = Instant.ofEpochMilli(lastLoginAt).atZone(zone)
+        val dateTime = Instant.ofEpochMilli(timestamp).atZone(zone)
         val nowDate = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
-        val loginDate = loginDateTime.toLocalDate()
-        val daysAgo = ChronoUnit.DAYS.between(loginDate, nowDate).coerceAtLeast(0)
+        val targetDate = dateTime.toLocalDate()
+        val daysAgo = ChronoUnit.DAYS.between(targetDate, nowDate).coerceAtLeast(0)
         val dayLabel = when (daysAgo) {
             0L -> "dzisiaj"
             1L -> "wczoraj"
             else -> "$daysAgo dni temu"
         }
-        val timeText = loginDateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
-        return "Ostatnio zalogował $dayLabel o $timeText"
+        val timeText = dateTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+        return "$label $dayLabel o $timeText"
     }
 
     private fun incrementHourCount(counts: List<Int>?, timestamp: Long): List<Int> {
