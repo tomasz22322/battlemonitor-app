@@ -71,11 +71,7 @@ class PlayerMonitorService : Service() {
                     val result = engine.scan(players)
                     val groupNotifications = storage.loadGroupNotifications()
                     result.statusChanges
-                        .filter { (player, _) ->
-                            val groupKey = groupKey(player.group)
-                            val groupEnabled = groupNotifications[groupKey] ?: true
-                            groupEnabled && player.notificationsEnabled != false
-                        }
+                        .filter { (player, _) -> player.notificationsEnabled != false }
                         .forEach { (player, isOnline) ->
                             if (canPostNotifications()) {
                                 sendStatusNotification(player, isOnline)
