@@ -248,10 +248,13 @@ class PlayerAdapter(
 
             val stayEntry = item.details
                 ?.firstOrNull { it.trim().startsWith("Czas przebywania", ignoreCase = true) }
+            val stayValue = stayEntry
+                ?.substringAfter(":", stayEntry)
+                ?.trim()
             val metaText = if (item.online) {
                 val metaParts = mutableListOf("Online")
-                if (stayEntry != null) {
-                    metaParts.add(stayEntry)
+                if (!stayValue.isNullOrBlank()) {
+                    metaParts.add(stayValue)
                 }
                 metaParts.joinToString(separator = " • ")
             } else {
@@ -264,6 +267,13 @@ class PlayerAdapter(
                 .orEmpty()
                 .filterNot { entry ->
                     stayEntry != null && entry.trim().equals(stayEntry.trim(), ignoreCase = true)
+                }
+                .map { entry ->
+                    if (entry.trim().startsWith("Czas przebywania", ignoreCase = true)) {
+                        entry.substringAfter(":", entry).trim()
+                    } else {
+                        entry
+                    }
                 }
                 .joinToString(separator = "\n")
                 .takeIf { expandedKeys.contains(item.key) }

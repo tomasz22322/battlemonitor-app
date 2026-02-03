@@ -219,6 +219,9 @@ class PlayerMonitorEngine(
             item.updatedAt = info.updatedAt
             if (item.online) {
                 item.lastSeenApiAt = info.lastSeenAt
+                if (info.lastSeenAt != null) {
+                    item.lastSeenAt = info.lastSeenAt
+                }
             }
             if (!info.steamId.isNullOrBlank()) {
                 item.steamId = info.steamId
@@ -256,7 +259,7 @@ class PlayerMonitorEngine(
 
     private fun buildStatusDetails(item: WatchedPlayer, now: Long, loginAt: Long?): List<String> {
         val entries = listOf(
-            StatusDetail("Ostatnio zalogował", loginAt ?: item.lastSeenAt),
+            StatusDetail("Zalogował", loginAt ?: item.lastSeenAt),
             StatusDetail("Wylogował", item.lastOfflineAt)
         )
         val (withTimestamp, withoutTimestamp) = entries.partition { it.timestamp != null }
