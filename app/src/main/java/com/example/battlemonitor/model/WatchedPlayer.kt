@@ -23,6 +23,7 @@ data class WatchedPlayer(
     // metryki monitoringu sesji (lokalne)
     var sessionStartAt: Long? = null,
     var lastSeenAt: Long? = null,
+    var lastLoginAt: Long? = null,
     var lastOfflineAt: Long? = null,
     var lastSessionSeconds: Long? = null,
     var totalSessionSeconds: Long? = null,
