@@ -135,11 +135,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         vm.onlinePlayersCount.observe(this) { count ->
-            tvOnlineCount.text = if (count != null) {
-                "Aktualnie na serwerze: $count osób"
-            } else {
-                "Aktualnie na serwerze: -- osób"
-            }
+            tvOnlineCount.text = count?.toString() ?: "--"
         }
     }
 
