@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -36,6 +37,7 @@ class MainActivity : AppCompatActivity() {
         val et = findViewById<EditText>(R.id.etPlayerKey)
         val btnAdd = findViewById<Button>(R.id.btnAdd)
         val rv = findViewById<RecyclerView>(R.id.rvPlayers)
+        val tvOnlineCount = findViewById<TextView>(R.id.tvOnlineCount)
 
         lateinit var itemTouchHelper: ItemTouchHelper
 
@@ -130,6 +132,14 @@ class MainActivity : AppCompatActivity() {
 
         vm.items.observe(this) { list ->
             adapter.submitList(list)
+        }
+
+        vm.onlinePlayersCount.observe(this) { count ->
+            tvOnlineCount.text = if (count != null) {
+                "Aktualnie na serwerze: $count osób"
+            } else {
+                "Aktualnie na serwerze: -- osób"
+            }
         }
     }
 
