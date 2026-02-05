@@ -10,7 +10,8 @@ import java.time.temporal.ChronoUnit
 
 data class ScanResult(
     val changed: Boolean,
-    val statusChanges: List<Pair<WatchedPlayer, Boolean>>
+    val statusChanges: List<Pair<WatchedPlayer, Boolean>>,
+    val onlinePlayersCount: Int?
 )
 
 class PlayerMonitorEngine(
@@ -36,7 +37,7 @@ class PlayerMonitorEngine(
         }.toSet()
         val snapshot = repository.fetchOnlinePlayers(watchedKeys)
         if (!snapshot.isDataValid) {
-            return ScanResult(changed = false, statusChanges = emptyList())
+            return ScanResult(changed = false, statusChanges = emptyList(), onlinePlayersCount = null)
         }
         val onlineMap = snapshot.players
         val sessionStartTimes = snapshot.sessionStartTimes
@@ -128,7 +129,11 @@ class PlayerMonitorEngine(
             }
         }
 
-        return ScanResult(changed = changed, statusChanges = statusChanges)
+        return ScanResult(
+            changed = changed,
+            statusChanges = statusChanges,
+            onlinePlayersCount = snapshot.onlinePlayersCount
+        )
     }
 
     private fun updateOnlinePlayer(

@@ -12,6 +12,7 @@ data class OnlinePlayersSnapshot(
     val serverName: String?,
     val players: Map<String, PlayerAttributes>,
     val sessionStartTimes: Map<String, Long>,
+    val onlinePlayersCount: Int?,
     val isDataValid: Boolean
 )
 
@@ -53,6 +54,7 @@ class PlayerRepository {
                     serverName = null,
                     players = emptyMap(),
                     sessionStartTimes = emptyMap(),
+                    onlinePlayersCount = null,
                     isDataValid = false
                 )
             }
@@ -64,6 +66,7 @@ class PlayerRepository {
                     serverName = null,
                     players = emptyMap(),
                     sessionStartTimes = emptyMap(),
+                    onlinePlayersCount = null,
                     isDataValid = false
                 )
             }
@@ -72,6 +75,9 @@ class PlayerRepository {
             val sessionStartTimes = HashMap<String, Long>(128)
             val serverName = body.data?.attributes
                 ?.let { ServerAttributes(it).name }
+            val onlinePlayersCount = body.included
+                .orEmpty()
+                .count { it.type == "player" }
 
             val included = body.included.orEmpty()
             for (item in included) {
@@ -123,6 +129,7 @@ class PlayerRepository {
                 serverName = serverName,
                 players = result,
                 sessionStartTimes = sessionStartTimes,
+                onlinePlayersCount = onlinePlayersCount,
                 isDataValid = true
             )
         } catch (e: Exception) {
@@ -131,6 +138,7 @@ class PlayerRepository {
                 serverName = null,
                 players = emptyMap(),
                 sessionStartTimes = emptyMap(),
+                onlinePlayersCount = null,
                 isDataValid = false
             )
         }

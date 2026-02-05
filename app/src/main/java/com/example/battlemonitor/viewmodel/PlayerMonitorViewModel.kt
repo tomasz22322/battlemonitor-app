@@ -29,6 +29,9 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val _items = MutableLiveData<List<PlayerListItem>>(emptyList())
     val items: LiveData<List<PlayerListItem>> = _items
 
+    private val _onlinePlayersCount = MutableLiveData<Int?>(null)
+    val onlinePlayersCount: LiveData<Int?> = _onlinePlayersCount
+
     init {
         watchedPlayers.addAll(storage.load())
         var requiresSave = false
@@ -438,6 +441,7 @@ class PlayerMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun scanServer() {
         val result = engine.scan(watchedPlayers)
+        _onlinePlayersCount.postValue(result.onlinePlayersCount)
         if (result.changed) {
             storage.save(watchedPlayers)
             publish()
